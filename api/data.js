@@ -15,6 +15,28 @@ const ALL_STATUSES = [
   "Never Heard Back"
 ];
 
+// Allowed OMs - normalized for comparison (lowercase, trimmed)
+const ALLOWED_OMS_HSS = [
+  "alejandro",
+  "olivia",
+  "jorge",
+  "deborah",
+  "chisom",
+  "camila",
+  "debby anfani"
+];
+
+const ALLOWED_OMS_SUPERFEEDERS = [
+  "alejandro",
+  "olivia",
+  "jorge",
+  "deborah",
+  "chisom",
+  "jason",
+  "camila",
+  "debby anfani"
+];
+
 async function getAccess(apiToken) {
   const res = await fetch(SERVER + "/api/v2.1/dtable/app-access-token/", {
     headers: { "Authorization": "Token " + apiToken, "Accept": "application/json" }
@@ -75,8 +97,9 @@ function getMonthsBack(count) {
   return months.reverse();
 }
 
-function processBaseData(rows, months) {
+function processBaseData(rows, months, allowedOMs) {
   const omData = {};
+  const foundOMs = new Set(); // Debug: track all OM names found
   
   for (const row of rows) {
     const om = resolve(row["TEAM"]);
@@ -86,6 +109,13 @@ function processBaseData(rows, months) {
     const pm = (row["Prod Month"] || "").trim();
     
     if (!om || !status || !ALL_STATUSES.includes(status)) continue;
+    
+    // Track all OMs found (for debugging)
+    foundOMs.add(om);
+    
+    // Filter by allowed OMs (normalize for comparison)
+    const omNormalized = om.toLowerCase().trim();
+    if (!allowedOMs.includes(omNormalized)) continue;
     
     if (!omData[om]) {
       omData[om] = {
@@ -156,7 +186,7 @@ function processBaseData(rows, months) {
     }
   }
   
-  return omData;
+  return { omData, foundOMs: Array.from(foundOMs).sort() };
 }
 
 function buildClientQuotaTable(omData, source) {
@@ -217,12 +247,12 @@ module.exports = async function handler(req, res) {
     ]);
 
     // ── Process both bases ──
-    const hssData = processBaseData(hssRows, last12Months);
-    const superData = processBaseData(superRows, last12Months);
+    const hssResult = processBaseData(hssRows, last12Months, ALLOWED_OMS_HSS);
+    const superResult = processBaseData(superRows, last12Months, ALLOWED_OMS_SUPERFEEDERS);
 
     // ── Build client quota tables ──
-    const hssQuotaPrevious = buildClientQuotaTable(hssData, "previous");
-    const superQuotaPrevious = buildClientQuotaTable(superData, "previous");
+    const hssQuotaPrevious = buildClientQuotaTable(hssResult.omData, "previous");
+    const superQuotaPrevious = buildClientQuotaTable(superResult.omData, "previous");
 
     // ── Format response ──
     const response = {
@@ -232,21 +262,23 @@ module.exports = async function handler(req, res) {
       previous_month: previousMonth,
       months: last12Months,
       hss: {
-        oms: Object.keys(hssData).sort(),
-        data: hssData,
+        oms: Object.keys(hssResult.omData).sort(),
+        data: hssResult.omData,
         quota_previous: hssQuotaPrevious
       },
       superfeeders: {
-        oms: Object.keys(superData).sort(),
-        data: superData,
+        oms: Object.keys(superResult.omData).sort(),
+        data: superResult.omData,
         quota_previous: superQuotaPrevious
       },
       statuses: ALL_STATUSES,
       debug: {
         hss_rows: hssRows.length,
         super_rows: superRows.length,
-        hss_oms: Object.keys(hssData).length,
-        super_oms: Object.keys(superData).length
+        hss_oms: Object.keys(hssResult.omData).length,
+        super_oms: Object.keys(superResult.omData).length,
+        hss_found_all_oms: hssResult.foundOMs,
+        super_found_all_oms: superResult.foundOMs
       }
     };
 
