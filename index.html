@@ -512,9 +512,10 @@ function renderStatuses(baseData, containerId) {
   const container = document.getElementById(containerId);
   const statuses = globalData.statuses;
   const oms = baseData.oms;
+  const currentMonth = globalData.current_month;
   
   // Build count table
-  let countHtml = '<div class="data-card"><div class="card-header">Record Counts by Status</div>';
+  let countHtml = '<div class="data-card"><div class="card-header">Record Counts by Status - ' + currentMonth + '</div>';
   countHtml += '<table class="data-table"><thead><tr><th>Status</th>';
   oms.forEach(om => {
     countHtml += '<th class="num">' + esc(om) + '</th>';
@@ -535,7 +536,7 @@ function renderStatuses(baseData, containerId) {
   countHtml += '</tbody></table></div>';
   
   // Build LV table
-  let lvHtml = '<div class="data-card"><div class="card-header">LV Values by Status</div>';
+  let lvHtml = '<div class="data-card"><div class="card-header">LV Values by Status - ' + currentMonth + '</div>';
   lvHtml += '<table class="data-table"><thead><tr><th>Status</th>';
   oms.forEach(om => {
     lvHtml += '<th class="num">' + esc(om) + '</th>';
