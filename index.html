@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="googlebot" content="noindex, nofollow">
+<title>SearchTides - OM PERFORMANCE DASHBOARD</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #f5f4f0;
+  --surface:  #ffffff;
+  --surface2: #f9f8f5;
+  --surface3: #eeecea;
+  --border:   rgba(0,0,0,0.08);
+  --border2:  rgba(0,0,0,0.14);
+  --text:     #1a1916;
+  --muted:    #888580;
+  --muted2:   #5a5754;
+  --purple:       #5b4de0;
+  --purple-light: #7c6af5;
+  --teal:       #0e9e80;
+  --teal-light: #12b894;
+  --amber:      #c47a1a;
+  --red:    #c0392b;
+  --orange: #e07820;
+  --green:  #1a8a52;
+  --fd: 'Libre Baskerville', serif;
+  --fs: 'Inter', sans-serif;
+  --fm: 'DM Mono', monospace;
+}
+body { 
+  font-family: var(--fs); 
+  background: var(--bg); 
+  color: var(--text); 
+  min-height: 100vh; 
+  font-variant-numeric: tabular-nums; 
+  font-size: 14px; 
+}
+
+/* LOADING */
+#loading-screen { 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center; 
+  min-height: 100vh; 
+  gap: 1.5rem; 
+}
+.load-wordmark { 
+  font-family: var(--fd); 
+  font-size: 12px; 
+  font-weight: 400; 
+  letter-spacing: 0.2em; 
+  text-transform: uppercase; 
+  color: var(--muted); 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+}
+.load-wordmark::before, .load-wordmark::after { 
+  content: ''; 
+  display: block; 
+  width: 32px; 
+  height: 1px; 
+  background: var(--border2); 
+}
+.load-title { 
+  font-family: var(--fd); 
+  font-size: 52px; 
+  font-weight: 700; 
+  letter-spacing: 0.04em; 
+  text-transform: uppercase; 
+}
+.load-title em { 
+  font-style: italic; 
+  color: var(--purple); 
+  font-weight: 400; 
+}
+.load-status { 
+  font-size: 12px; 
+  color: var(--muted); 
+  font-family: var(--fm); 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+}
+.spinner { 
+  width: 14px; 
+  height: 14px; 
+  border: 2px solid var(--border2); 
+  border-top-color: var(--purple); 
+  border-radius: 50%; 
+  animation: spin 0.7s linear infinite; 
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-box { 
+  background: var(--surface); 
+  border: 1px solid rgba(192,57,43,0.3); 
+  border-radius: 8px; 
+  padding: 1.5rem 2rem; 
+  max-width: 480px; 
+  text-align: center; 
+}
+.error-box h3 { 
+  font-family: var(--fd); 
+  font-size: 18px; 
+  color: var(--red); 
+  margin-bottom: 0.5rem; 
+}
+.error-box p { 
+  font-size: 13px; 
+  color: var(--muted2); 
+  font-family: var(--fm); 
+  margin-bottom: 1rem; 
+}
+.retry-btn { 
+  padding: 8px 20px; 
+  background: var(--purple); 
+  color: #fff; 
+  border: none; 
+  border-radius: 4px; 
+  font-size: 12px; 
+  font-weight: 600; 
+  font-family: var(--fs); 
+  cursor: pointer; 
+  letter-spacing: 0.06em; 
+  text-transform: uppercase; 
+}
+
+/* DASHBOARD */
+#dashboard { 
+  display: none; 
+  max-width: 1800px; 
+  margin: 0 auto; 
+  padding: 0 2rem 4rem; 
+}
+.topnav { 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  padding: 1.1rem 0; 
+  border-bottom: 1px solid var(--border2); 
+  flex-wrap: wrap; 
+  gap: 1rem; 
+}
+.nav-brand { 
+  font-family: var(--fd); 
+  font-size: 17px; 
+  font-weight: 700; 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+}
+.nav-dot { 
+  width: 7px; 
+  height: 7px; 
+  border-radius: 50%; 
+  background: var(--purple); 
+}
+.nav-brand span { 
+  color: var(--muted); 
+  font-weight: 400; 
+  font-size: 14px; 
+  font-family: var(--fs); 
+}
+.nav-right { 
+  display: flex; 
+  align-items: center; 
+  gap: 1rem; 
+  flex-wrap: wrap; 
+}
+.nav-meta { 
+  font-size: 11px; 
+  color: var(--muted); 
+  font-family: var(--fm); 
+}
+.refresh-btn { 
+  font-size: 11px; 
+  color: var(--muted2); 
+  background: var(--surface); 
+  border: 1px solid var(--border2); 
+  border-radius: 4px; 
+  padding: 6px 14px; 
+  cursor: pointer; 
+  font-family: var(--fm); 
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  transition: border-color 0.15s, color 0.15s; 
+}
+.refresh-btn:hover { 
+  border-color: var(--purple); 
+  color: var(--purple); 
+}
+.refresh-btn .spin-sm { 
+  width: 10px; 
+  height: 10px; 
+  border: 1.5px solid var(--border2); 
+  border-top-color: var(--purple); 
+  border-radius: 50%; 
+  animation: spin 0.7s linear infinite; 
+  display: none; 
+}
+.refresh-btn.loading .spin-sm { display: block; }
+
+.tabs { 
+  display: flex; 
+  border-bottom: 1px solid var(--border2); 
+  margin-bottom: 1.75rem; 
+  margin-top: 1.5rem;
+  gap: 8px;
+}
+.tab { 
+  padding: 13px 22px; 
+  font-size: 11px; 
+  font-weight: 600; 
+  letter-spacing: 0.09em; 
+  text-transform: uppercase; 
+  font-family: var(--fm); 
+  color: var(--muted); 
+  cursor: pointer; 
+  border-bottom: 2px solid transparent; 
+  margin-bottom: -1px; 
+  transition: color 0.15s, border-color 0.15s; 
+}
+.tab:hover { color: var(--muted2); }
+.tab.active { 
+  color: var(--purple); 
+  border-bottom-color: var(--purple); 
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.section-title {
+  font-family: var(--fd);
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  margin-top: 2rem;
+  letter-spacing: -0.01em;
+}
+
+.section-title:first-child { margin-top: 0; }
+
+.data-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.card-header {
+  font-family: var(--fd);
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Tables */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-family: var(--fm);
+}
+
+.data-table thead {
+  background: var(--surface3);
+}
+
+.data-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted2);
+  border-bottom: 1px solid var(--border2);
+}
+
+.data-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table tbody tr:hover {
+  background: var(--surface2);
+}
+
+.data-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table td.om-name {
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* Charts */
+.chart-container {
+  position: relative;
+  height: 400px;
+  margin-bottom: 2rem;
+}
+
+.chart-small {
+  height: 300px;
+}
+
+.toggle-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1.5rem;
+  justify-content: center;
+}
+
+.toggle-btn {
+  padding: 8px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--fm);
+  color: var(--muted2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.toggle-btn:hover {
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
+.toggle-btn.active {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: #fff;
+}
+
+@media (max-width: 900px) {
+  #dashboard { padding: 0 1rem 2rem; }
+  .section-title { font-size: 20px; }
+  .chart-container { height: 300px; }
+  .data-table { font-size: 11px; }
+  .data-table th, .data-table td { padding: 8px 10px; }
+}
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="load-wordmark">SearchTides</div>
+  <h1 class="load-title">OM <em>PERFORMANCE</em></h1>
+  <div class="load-status" id="load-status">
+    <div class="spinner"></div>
+    <span id="load-text">Loading data...</span>
+  </div>
+</div>
+
+<div id="dashboard">
+  <div class="topnav">
+    <div class="nav-brand">
+      <div class="nav-dot"></div>
+      SearchTides
+      <span>/ OM PERFORMANCE DASHBOARD</span>
+    </div>
+    <div class="nav-right">
+      <span class="nav-meta" id="nav-meta"></span>
+      <button class="refresh-btn" id="refresh-btn" onclick="loadData()">
+        <div class="spin-sm"></div>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('statuses')">Statuses</div>
+    <div class="tab" onclick="switchTab('quota')">Built Quota from Previous Month</div>
+    <div class="tab" onclick="switchTab('trends')">Trends</div>
+    <div class="tab" onclick="switchTab('superfeeders')">Superfeeders</div>
+  </div>
+
+  <div class="tab-content active" id="tab-statuses">
+    <div id="statuses-content"></div>
+  </div>
+
+  <div class="tab-content" id="tab-quota">
+    <div id="quota-content"></div>
+  </div>
+
+  <div class="tab-content" id="tab-trends">
+    <div class="toggle-group">
+      <button class="toggle-btn" onclick="setTrendPeriod(6)">6 Months</button>
+      <button class="toggle-btn active" onclick="setTrendPeriod(12)">12 Months</button>
+    </div>
+    <div id="trends-content"></div>
+  </div>
+
+  <div class="tab-content" id="tab-superfeeders">
+    <h2 class="section-title">Superfeeders - Statuses</h2>
+    <div id="super-statuses-content"></div>
+    
+    <h2 class="section-title">Superfeeders - Built Quota from Previous Month</h2>
+    <div id="super-quota-content"></div>
+    
+    <h2 class="section-title">Superfeeders - Trends</h2>
+    <div class="toggle-group">
+      <button class="toggle-btn" onclick="setSuperTrendPeriod(6)">6 Months</button>
+      <button class="toggle-btn active" onclick="setSuperTrendPeriod(12)">12 Months</button>
+    </div>
+    <div id="super-trends-content"></div>
+  </div>
+</div>
+
+<script>
+let globalData = null;
+let trendPeriod = 12;
+let superTrendPeriod = 12;
+let charts = {};
+
+const CHART_COLORS = [
+  '#5b4de0', '#0e9e80', '#c47a1a', '#e07820', '#1a8a52', 
+  '#c0392b', '#3498db', '#9b59b6', '#e74c3c', '#16a085',
+  '#f39c12', '#d35400', '#c0392b', '#8e44ad', '#2c3e50'
+];
+
+function fmt(v) { return Math.round(v||0).toLocaleString("en-US"); }
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function switchTab(tab) {
+  const tabs = ['statuses', 'quota', 'trends', 'superfeeders'];
+  document.querySelectorAll(".tab").forEach((t, i) => {
+    t.classList.toggle("active", tabs[i] === tab);
+  });
+  tabs.forEach(t => {
+    document.getElementById("tab-" + t).classList.toggle("active", t === tab);
+  });
+}
+
+function setTrendPeriod(months) {
+  trendPeriod = months;
+  document.querySelectorAll("#tab-trends .toggle-btn").forEach((btn, i) => {
+    btn.classList.toggle("active", (i === 0 && months === 6) || (i === 1 && months === 12));
+  });
+  if (globalData) renderTrends(globalData.hss, 'trends-content');
+}
+
+function setSuperTrendPeriod(months) {
+  superTrendPeriod = months;
+  document.querySelectorAll("#tab-superfeeders .toggle-group .toggle-btn").forEach((btn, i) => {
+    btn.classList.toggle("active", (i === 0 && months === 6) || (i === 1 && months === 12));
+  });
+  if (globalData) renderTrends(globalData.superfeeders, 'super-trends-content', superTrendPeriod);
+}
+
+async function loadData() {
+  const btn = document.getElementById("refresh-btn");
+  const loadScreen = document.getElementById("loading-screen");
+  const dash = document.getElementById("dashboard");
+
+  btn.classList.add("loading");
+  document.getElementById("load-text").textContent = "Loading data...";
+
+  try {
+    const res = await fetch("/api/data");
+    if (!res.ok) throw new Error("API error " + res.status);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || "Unknown error");
+
+    globalData = json;
+    const loaded = new Date(json.generated).toLocaleTimeString("en-US");
+    document.getElementById("nav-meta").textContent = 
+      json.current_month + " - loaded " + loaded;
+
+    renderStatuses(json.hss, 'statuses-content');
+    renderQuota(json.hss, 'quota-content', json.previous_month);
+    renderTrends(json.hss, 'trends-content');
+    
+    renderStatuses(json.superfeeders, 'super-statuses-content');
+    renderQuota(json.superfeeders, 'super-quota-content', json.previous_month);
+    renderTrends(json.superfeeders, 'super-trends-content', superTrendPeriod);
+
+    loadScreen.style.display = "none";
+    dash.style.display = "block";
+
+  } catch(err) {
+    document.getElementById("load-text").textContent = "Error: " + err.message;
+    loadScreen.innerHTML =
+      '<div class="load-wordmark">SearchTides</div>' +
+      '<h1 class="load-title">OM <em>PERFORMANCE</em></h1>' +
+      '<div class="error-box">' +
+        '<h3>Could not load data</h3>' +
+        '<p>' + esc(err.message) + '</p>' +
+        '<button class="retry-btn" onclick="loadData()">Retry</button>' +
+      '</div>';
+  } finally {
+    btn.classList.remove("loading");
+  }
+}
+
+function renderStatuses(baseData, containerId) {
+  const container = document.getElementById(containerId);
+  const statuses = globalData.statuses;
+  const oms = baseData.oms;
+  
+  // Build count table
+  let countHtml = '<div class="data-card"><div class="card-header">Record Counts by Status</div>';
+  countHtml += '<table class="data-table"><thead><tr><th>Status</th>';
+  oms.forEach(om => {
+    countHtml += '<th class="num">' + esc(om) + '</th>';
+  });
+  countHtml += '<th class="num">Total</th></tr></thead><tbody>';
+  
+  statuses.forEach(status => {
+    countHtml += '<tr><td class="om-name">' + esc(status) + '</td>';
+    let rowTotal = 0;
+    oms.forEach(om => {
+      const data = baseData.data[om]?.currentMonth[status];
+      const count = data?.count || 0;
+      rowTotal += count;
+      countHtml += '<td class="num">' + fmt(count) + '</td>';
+    });
+    countHtml += '<td class="num"><strong>' + fmt(rowTotal) + '</strong></td></tr>';
+  });
+  countHtml += '</tbody></table></div>';
+  
+  // Build LV table
+  let lvHtml = '<div class="data-card"><div class="card-header">LV Values by Status</div>';
+  lvHtml += '<table class="data-table"><thead><tr><th>Status</th>';
+  oms.forEach(om => {
+    lvHtml += '<th class="num">' + esc(om) + '</th>';
+  });
+  lvHtml += '<th class="num">Total</th></tr></thead><tbody>';
+  
+  statuses.forEach(status => {
+    lvHtml += '<tr><td class="om-name">' + esc(status) + '</td>';
+    let rowTotal = 0;
+    oms.forEach(om => {
+      const data = baseData.data[om]?.currentMonth[status];
+      const lv = data?.lv || 0;
+      rowTotal += lv;
+      lvHtml += '<td class="num">' + fmt(lv) + '</td>';
+    });
+    lvHtml += '<td class="num"><strong>' + fmt(rowTotal) + '</strong></td></tr>';
+  });
+  lvHtml += '</tbody></table></div>';
+  
+  container.innerHTML = countHtml + lvHtml;
+}
+
+function renderQuota(baseData, containerId, previousMonth) {
+  const container = document.getElementById(containerId);
+  const quotaData = baseData.quota_previous;
+  const oms = baseData.oms;
+  
+  if (!quotaData || quotaData.length === 0) {
+    container.innerHTML = '<div class="data-card"><p style="color: var(--muted);">No published data for ' + previousMonth + '</p></div>';
+    return;
+  }
+  
+  // Table
+  let html = '<div class="data-card"><div class="card-header">Published LV by Client (' + previousMonth + ')</div>';
+  html += '<table class="data-table"><thead><tr><th>Client</th>';
+  oms.forEach(om => {
+    html += '<th class="num">' + esc(om) + '</th>';
+  });
+  html += '<th class="num">Total</th></tr></thead><tbody>';
+  
+  quotaData.forEach(client => {
+    html += '<tr><td class="om-name">' + esc(client.client) + '</td>';
+    oms.forEach(om => {
+      const val = client.oms[om] || 0;
+      html += '<td class="num">' + (val > 0 ? fmt(val) : '-') + '</td>';
+    });
+    html += '<td class="num"><strong>' + fmt(client.total) + '</strong></td></tr>';
+  });
+  html += '</tbody></table></div>';
+  
+  // Pie chart for OM contributions
+  const omTotals = {};
+  oms.forEach(om => { omTotals[om] = 0; });
+  quotaData.forEach(client => {
+    oms.forEach(om => {
+      omTotals[om] += (client.oms[om] || 0);
+    });
+  });
+  
+  const chartId = 'chart-' + containerId;
+  html += '<div class="data-card"><div class="card-header">OM Contribution Distribution</div>';
+  html += '<div class="chart-container chart-small"><canvas id="' + chartId + '"></canvas></div></div>';
+  
+  container.innerHTML = html;
+  
+  // Render pie chart
+  const ctx = document.getElementById(chartId);
+  if (charts[chartId]) charts[chartId].destroy();
+  charts[chartId] = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: oms,
+      datasets: [{
+        data: oms.map(om => omTotals[om]),
+        backgroundColor: CHART_COLORS,
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right' },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const label = context.label || '';
+              const value = fmt(context.parsed);
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = total > 0 ? Math.round((context.parsed / total) * 100) : 0;
+              return label + ': ' + value + ' (' + pct + '%)';
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderTrends(baseData, containerId, period = 12) {
+  const container = document.getElementById(containerId);
+  const oms = baseData.oms;
+  const months = globalData.months.slice(-period);
+  
+  // 1. Total Records Trend
+  let html = '<div class="data-card"><div class="card-header">Total Records per Month</div>';
+  const chartId1 = 'chart-records-' + containerId;
+  html += '<div class="chart-container"><canvas id="' + chartId1 + '"></canvas></div>';
+  
+  // Table
+  html += '<table class="data-table"><thead><tr><th>Month</th>';
+  oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
+  html += '</tr></thead><tbody>';
+  
+  months.forEach(month => {
+    html += '<tr><td class="om-name">' + esc(month) + '</td>';
+    oms.forEach(om => {
+      const val = baseData.data[om]?.trends[month]?.total_count || 0;
+      html += '<td class="num">' + (val > 0 ? fmt(val) : '-') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  
+  // 2. Total LV Trend
+  html += '<div class="data-card"><div class="card-header">Total LV per Month</div>';
+  const chartId2 = 'chart-lv-' + containerId;
+  html += '<div class="chart-container"><canvas id="' + chartId2 + '"></canvas></div>';
+  
+  html += '<table class="data-table"><thead><tr><th>Month</th>';
+  oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
+  html += '</tr></thead><tbody>';
+  
+  months.forEach(month => {
+    html += '<tr><td class="om-name">' + esc(month) + '</td>';
+    oms.forEach(om => {
+      const val = baseData.data[om]?.trends[month]?.total_lv || 0;
+      html += '<td class="num">' + (val > 0 ? fmt(val) : '-') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  
+  // 3. Negotiations Trend
+  html += '<div class="data-card"><div class="card-header">Negotiations Count per Month</div>';
+  const chartId3 = 'chart-neg-count-' + containerId;
+  html += '<div class="chart-container"><canvas id="' + chartId3 + '"></canvas></div>';
+  
+  html += '<table class="data-table"><thead><tr><th>Month</th>';
+  oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
+  html += '</tr></thead><tbody>';
+  
+  months.forEach(month => {
+    html += '<tr><td class="om-name">' + esc(month) + '</td>';
+    oms.forEach(om => {
+      const val = baseData.data[om]?.trends[month]?.negotiation_count || 0;
+      html += '<td class="num">' + (val > 0 ? fmt(val) : '-') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  
+  // 4. Negotiations LV Trend
+  html += '<div class="data-card"><div class="card-header">Negotiations LV per Month</div>';
+  const chartId4 = 'chart-neg-lv-' + containerId;
+  html += '<div class="chart-container"><canvas id="' + chartId4 + '"></canvas></div>';
+  
+  html += '<table class="data-table"><thead><tr><th>Month</th>';
+  oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
+  html += '</tr></thead><tbody>';
+  
+  months.forEach(month => {
+    html += '<tr><td class="om-name">' + esc(month) + '</td>';
+    oms.forEach(om => {
+      const val = baseData.data[om]?.trends[month]?.negotiation_lv || 0;
+      html += '<td class="num">' + (val > 0 ? fmt(val) : '-') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  
+  // 5. Conversion Rate Trend
+  html += '<div class="data-card"><div class="card-header">Negotiations → Content Requested Conversion Rate (%)</div>';
+  const chartId5 = 'chart-conversion-' + containerId;
+  html += '<div class="chart-container"><canvas id="' + chartId5 + '"></canvas></div>';
+  
+  html += '<table class="data-table"><thead><tr><th>Month</th>';
+  oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
+  html += '</tr></thead><tbody>';
+  
+  months.forEach(month => {
+    html += '<tr><td class="om-name">' + esc(month) + '</td>';
+    oms.forEach(om => {
+      const val = baseData.data[om]?.trends[month]?.conversion_rate || 0;
+      html += '<td class="num">' + (val > 0 ? val + '%' : '-') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  
+  container.innerHTML = html;
+  
+  // Render all charts
+  renderLineChart(chartId1, months, oms, baseData, 'total_count');
+  renderLineChart(chartId2, months, oms, baseData, 'total_lv');
+  renderLineChart(chartId3, months, oms, baseData, 'negotiation_count');
+  renderLineChart(chartId4, months, oms, baseData, 'negotiation_lv');
+  renderLineChart(chartId5, months, oms, baseData, 'conversion_rate');
+}
+
+function renderLineChart(chartId, months, oms, baseData, metric) {
+  const ctx = document.getElementById(chartId);
+  if (!ctx) return;
+  
+  if (charts[chartId]) charts[chartId].destroy();
+  
+  const datasets = oms.map((om, idx) => ({
+    label: om,
+    data: months.map(month => baseData.data[om]?.trends[month]?.[metric] || 0),
+    borderColor: CHART_COLORS[idx % CHART_COLORS.length],
+    backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] + '20',
+    borderWidth: 2,
+    tension: 0.3,
+    fill: false
+  }));
+  
+  charts[chartId] = new Chart(ctx, {
+    type: 'line',
+    data: { labels: months, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
+loadData();
+</script>
+</body>
+</html>
