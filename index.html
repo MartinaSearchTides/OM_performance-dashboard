@@ -742,8 +742,8 @@ function renderTrends(baseData, containerId, period = 12) {
   });
   html += '</tbody></table></div>';
   
-  // 3. Negotiations Trend
-  html += '<div class="data-card"><div class="card-header">Negotiations Count per Month</div>';
+  // 3. Negotiations Trend (Snapshot - not historical progression)
+  html += '<div class="data-card"><div class="card-header">Records in Negotiations Status (by Prod Month)<br><small style="font-size: 11px; font-weight: 400; color: var(--muted); font-family: var(--fm);">Note: Shows records currently/historically marked with Negotiation status for each month - not a pipeline progression snapshot</small></div>';
   const chartId3 = 'chart-neg-count-' + containerId;
   html += '<div class="chart-container"><canvas id="' + chartId3 + '"></canvas></div>';
   
@@ -762,7 +762,7 @@ function renderTrends(baseData, containerId, period = 12) {
   html += '</tbody></table></div>';
   
   // 4. Negotiations LV Trend
-  html += '<div class="data-card"><div class="card-header">Negotiations LV per Month</div>';
+  html += '<div class="data-card"><div class="card-header">LV in Negotiations Status (by Prod Month)<br><small style="font-size: 11px; font-weight: 400; color: var(--muted); font-family: var(--fm);">Total Link Value of records with Negotiation status</small></div>';
   const chartId4 = 'chart-neg-lv-' + containerId;
   html += '<div class="chart-container"><canvas id="' + chartId4 + '"></canvas></div>';
   
