@@ -742,10 +742,48 @@ function renderTrends(baseData, containerId, period = 12) {
   });
   html += '</tbody></table></div>';
   
-  // 3. Negotiations Trend (Snapshot - not historical progression)
-  html += '<div class="data-card"><div class="card-header">Records in Negotiations Status (by Prod Month)<br><small style="font-size: 11px; font-weight: 400; color: var(--muted); font-family: var(--fm);">Note: Shows records currently/historically marked with Negotiation status for each month - not a pipeline progression snapshot</small></div>';
-  const chartId3 = 'chart-neg-count-' + containerId;
+  // 3. Created → Content Requested Conversion Rate
+  html += '<div class="data-card"><div class="card-header">Created → Content Requested Conversion Rate (%)<br><small style="font-size: 11px; font-weight: 400; color: var(--muted); font-family: var(--fm);">% of records created in each month that reached Content Requested status</small></div>';
+  const chartId3 = 'chart-created-cr-rate-' + containerId;
   html += '<div class="chart-container"><canvas id="' + chartId3 + '"></canvas></div>';
+  
+  html += '<table class="data-table"><thead><tr><th>Month</th>';
+  oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
+  html += '</tr></thead><tbody>';
+  
+  months.forEach(month => {
+    html += '<tr><td class="om-name">' + esc(month) + '</td>';
+    oms.forEach(om => {
+      const val = baseData.data[om]?.trends[month]?.created_to_cr_rate || 0;
+      html += '<td class="num">' + (val > 0 ? val + '%' : '-') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  
+  // 4. Average Days to Content Request
+  html += '<div class="data-card"><div class="card-header">Average Days to Content Request<br><small style="font-size: 11px; font-weight: 400; color: var(--muted); font-family: var(--fm);">Average time from Created Date to CONTENT DATE REQUESTED (in days)</small></div>';
+  const chartId4 = 'chart-days-to-cr-' + containerId;
+  html += '<div class="chart-container"><canvas id="' + chartId4 + '"></canvas></div>';
+  
+  html += '<table class="data-table"><thead><tr><th>Month</th>';
+  oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
+  html += '</tr></thead><tbody>';
+  
+  months.forEach(month => {
+    html += '<tr><td class="om-name">' + esc(month) + '</td>';
+    oms.forEach(om => {
+      const val = baseData.data[om]?.trends[month]?.avg_days_to_cr || 0;
+      html += '<td class="num">' + (val > 0 ? val + ' days' : '-') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  
+  // 5. Negotiations Trend (Snapshot - not historical progression)
+  html += '<div class="data-card"><div class="card-header">Records in Negotiations Status (by Prod Month)<br><small style="font-size: 11px; font-weight: 400; color: var(--muted); font-family: var(--fm);">Note: Shows records currently/historically marked with Negotiation status for each month - not a pipeline progression snapshot</small></div>';
+  const chartId5 = 'chart-neg-count-' + containerId;
+  html += '<div class="chart-container"><canvas id="' + chartId5 + '"></canvas></div>';
   
   html += '<table class="data-table"><thead><tr><th>Month</th>';
   oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
@@ -761,10 +799,10 @@ function renderTrends(baseData, containerId, period = 12) {
   });
   html += '</tbody></table></div>';
   
-  // 4. Negotiations LV Trend
+  // 6. Negotiations LV Trend
   html += '<div class="data-card"><div class="card-header">LV in Negotiations Status (by Prod Month)<br><small style="font-size: 11px; font-weight: 400; color: var(--muted); font-family: var(--fm);">Total Link Value of records with Negotiation status</small></div>';
-  const chartId4 = 'chart-neg-lv-' + containerId;
-  html += '<div class="chart-container"><canvas id="' + chartId4 + '"></canvas></div>';
+  const chartId6 = 'chart-neg-lv-' + containerId;
+  html += '<div class="chart-container"><canvas id="' + chartId6 + '"></canvas></div>';
   
   html += '<table class="data-table"><thead><tr><th>Month</th>';
   oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
@@ -780,10 +818,10 @@ function renderTrends(baseData, containerId, period = 12) {
   });
   html += '</tbody></table></div>';
   
-  // 5. Conversion Rate Trend
+  // 7. Conversion Rate Trend
   html += '<div class="data-card"><div class="card-header">Negotiations → Content Requested Conversion Rate (%)</div>';
-  const chartId5 = 'chart-conversion-' + containerId;
-  html += '<div class="chart-container"><canvas id="' + chartId5 + '"></canvas></div>';
+  const chartId7 = 'chart-conversion-' + containerId;
+  html += '<div class="chart-container"><canvas id="' + chartId7 + '"></canvas></div>';
   
   html += '<table class="data-table"><thead><tr><th>Month</th>';
   oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
@@ -804,9 +842,11 @@ function renderTrends(baseData, containerId, period = 12) {
   // Render all charts
   renderLineChart(chartId1, months, oms, baseData, 'total_count');
   renderLineChart(chartId2, months, oms, baseData, 'total_lv');
-  renderLineChart(chartId3, months, oms, baseData, 'negotiation_count');
-  renderLineChart(chartId4, months, oms, baseData, 'negotiation_lv');
-  renderLineChart(chartId5, months, oms, baseData, 'conversion_rate');
+  renderLineChart(chartId3, months, oms, baseData, 'created_to_cr_rate');
+  renderLineChart(chartId4, months, oms, baseData, 'avg_days_to_cr');
+  renderLineChart(chartId5, months, oms, baseData, 'negotiation_count');
+  renderLineChart(chartId6, months, oms, baseData, 'negotiation_lv');
+  renderLineChart(chartId7, months, oms, baseData, 'conversion_rate');
 }
 
 function renderLineChart(chartId, months, oms, baseData, metric) {

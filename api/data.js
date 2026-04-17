@@ -107,6 +107,8 @@ function processBaseData(rows, months, allowedOMs) {
     const status = row["STATUS 1"];
     const lv = parseFloat(row["LV"]) || 0;
     const pm = (row["Prod Month"] || "").trim();
+    const createdDate = row["Created Date"] || row["created_date"] || "";
+    const contentRequestedDate = row["CONTENT DATE REQUESTED (from CM)"] || "";
     
     if (!om || !status || !ALL_STATUSES.includes(status)) continue;
     
@@ -159,7 +161,11 @@ function processBaseData(rows, months, allowedOMs) {
           total_lv: 0,
           negotiation_count: 0,
           negotiation_lv: 0,
-          content_requested_count: 0
+          content_requested_count: 0,
+          created_count: 0,
+          reached_content_requested: 0,
+          time_to_cr_total: 0,
+          time_to_cr_count: 0
         };
       }
       
@@ -175,14 +181,69 @@ function processBaseData(rows, months, allowedOMs) {
         omData[om].trends[pm].content_requested_count += 1;
       }
     }
+    
+    // Process Created Date for conversion tracking
+    if (createdDate) {
+      try {
+        const created = new Date(String(createdDate).substring(0, 10));
+        const createdMonth = created.toLocaleString("en-US", { month: "short", year: "numeric" });
+        
+        if (months.includes(createdMonth)) {
+          if (!omData[om].trends[createdMonth]) {
+            omData[om].trends[createdMonth] = {
+              total_count: 0,
+              total_lv: 0,
+              negotiation_count: 0,
+              negotiation_lv: 0,
+              content_requested_count: 0,
+              created_count: 0,
+              reached_content_requested: 0,
+              time_to_cr_total: 0,
+              time_to_cr_count: 0
+            };
+          }
+          
+          omData[om].trends[createdMonth].created_count += 1;
+          
+          // Check if this record reached Content Requested
+          if (contentRequestedDate) {
+            omData[om].trends[createdMonth].reached_content_requested += 1;
+            
+            // Calculate time to content request (in days)
+            try {
+              const crDate = new Date(String(contentRequestedDate).substring(0, 10));
+              const diffTime = Math.abs(crDate - created);
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              omData[om].trends[createdMonth].time_to_cr_total += diffDays;
+              omData[om].trends[createdMonth].time_to_cr_count += 1;
+            } catch(e) {
+              // Skip if date parsing fails
+            }
+          }
+        }
+      } catch(e) {
+        // Skip if date parsing fails
+      }
+    }
   }
   
-  // Calculate conversion rates for trends
+  // Calculate conversion rates and averages for trends
   for (const om in omData) {
     for (const month in omData[om].trends) {
       const neg = omData[om].trends[month].negotiation_count;
       const cr = omData[om].trends[month].content_requested_count;
       omData[om].trends[month].conversion_rate = neg > 0 ? Math.round((cr / neg) * 100) : 0;
+      
+      // Calculate Created → Content Requested conversion rate
+      const created = omData[om].trends[month].created_count;
+      const reached = omData[om].trends[month].reached_content_requested;
+      omData[om].trends[month].created_to_cr_rate = created > 0 ? Math.round((reached / created) * 100) : 0;
+      
+      // Calculate average time to content request (in days)
+      const timeCount = omData[om].trends[month].time_to_cr_count;
+      const timeTotal = omData[om].trends[month].time_to_cr_total;
+      omData[om].trends[month].avg_days_to_cr = timeCount > 0 ? Math.round(timeTotal / timeCount) : 0;
     }
   }
   
