@@ -99,10 +99,27 @@ function getMonthsBack(count) {
 function parseDate(dateVal) {
   if (!dateVal) return null;
   try {
-    return new Date(String(dateVal).substring(0, 10));
+    const dateStr = String(dateVal).substring(0, 10);
+    const parsed = new Date(dateStr);
+    if (isNaN(parsed.getTime())) return null;
+    return parsed;
   } catch(e) {
     return null;
   }
+}
+
+function initTrendMonth(month) {
+  return {
+    total_count: 0,
+    total_lv: 0,
+    negotiation_count: 0,
+    negotiation_lv: 0,
+    content_requested_count: 0,
+    created_count: 0,
+    reached_content_requested: 0,
+    time_to_cr_total: 0,
+    time_to_cr_count: 0
+  };
 }
 
 function processBaseData(rows, months, allowedOMs) {
@@ -112,19 +129,19 @@ function processBaseData(rows, months, allowedOMs) {
   for (const row of rows) {
     try {
       const om = resolve(row["TEAM"]);
-      const client = resolve(row["CLIENT*"]);
-      const status = row["STATUS 1"];
-      const lv = parseFloat(row["LV"]) || 0;
-      const pm = (row["Prod Month"] || "").trim();
-      const createdDate = row["Created Date"] || row["created_date"] || "";
-      const contentRequestedDate = row["CONTENT DATE REQUESTED (from CM)"] || "";
-      
-      if (!om || !status || !ALL_STATUSES.includes(status)) continue;
+      if (!om) continue;
       
       foundOMs.add(om);
       
       const omNormalized = om.toLowerCase().trim();
       if (!allowedOMs.includes(omNormalized)) continue;
+      
+      const client = resolve(row["CLIENT*"]);
+      const status = row["STATUS 1"];
+      const lv = parseFloat(row["LV"]) || 0;
+      const pm = (row["Prod Month"] || "").trim();
+      
+      if (!status || !ALL_STATUSES.includes(status)) continue;
       
       if (!omData[om]) {
         omData[om] = {
@@ -159,17 +176,7 @@ function processBaseData(rows, months, allowedOMs) {
       
       if (months.includes(pm)) {
         if (!omData[om].trends[pm]) {
-          omData[om].trends[pm] = {
-            total_count: 0,
-            total_lv: 0,
-            negotiation_count: 0,
-            negotiation_lv: 0,
-            content_requested_count: 0,
-            created_count: 0,
-            reached_content_requested: 0,
-            time_to_cr_total: 0,
-            time_to_cr_count: 0
-          };
+          omData[om].trends[pm] = initTrendMonth();
         }
         
         omData[om].trends[pm].total_count += 1;
@@ -185,6 +192,7 @@ function processBaseData(rows, months, allowedOMs) {
         }
       }
       
+      const createdDate = row["Created Date"] || row["created_date"] || "";
       if (createdDate) {
         const created = parseDate(createdDate);
         if (created) {
@@ -192,55 +200,50 @@ function processBaseData(rows, months, allowedOMs) {
           
           if (months.includes(createdMonth)) {
             if (!omData[om].trends[createdMonth]) {
-              omData[om].trends[createdMonth] = {
-                total_count: 0,
-                total_lv: 0,
-                negotiation_count: 0,
-                negotiation_lv: 0,
-                content_requested_count: 0,
-                created_count: 0,
-                reached_content_requested: 0,
-                time_to_cr_total: 0,
-                time_to_cr_count: 0
-              };
+              omData[om].trends[createdMonth] = initTrendMonth();
             }
             
             omData[om].trends[createdMonth].created_count += 1;
             
+            const contentRequestedDate = row["CONTENT DATE REQUESTED (from CM)"] || "";
             if (contentRequestedDate) {
               omData[om].trends[createdMonth].reached_content_requested += 1;
               
               const crDate = parseDate(contentRequestedDate);
-              if (crDate) {
-                const diffTime = Math.abs(crDate - created);
+              if (crDate && created) {
+                const diffTime = Math.abs(crDate.getTime() - created.getTime());
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 
-                omData[om].trends[createdMonth].time_to_cr_total += diffDays;
-                omData[om].trends[createdMonth].time_to_cr_count += 1;
+                if (diffDays >= 0 && diffDays < 1000) {
+                  omData[om].trends[createdMonth].time_to_cr_total += diffDays;
+                  omData[om].trends[createdMonth].time_to_cr_count += 1;
+                }
               }
             }
           }
         }
       }
     } catch(e) {
-      console.error("Error processing row:", e);
+      console.error("Error processing row:", e.message);
       continue;
     }
   }
   
   for (const om in omData) {
     for (const month in omData[om].trends) {
-      const neg = omData[om].trends[month].negotiation_count;
-      const cr = omData[om].trends[month].content_requested_count;
-      omData[om].trends[month].conversion_rate = neg > 0 ? Math.round((cr / neg) * 100) : 0;
+      const trend = omData[om].trends[month];
       
-      const created = omData[om].trends[month].created_count;
-      const reached = omData[om].trends[month].reached_content_requested;
-      omData[om].trends[month].created_to_cr_rate = created > 0 ? Math.round((reached / created) * 100) : 0;
+      trend.conversion_rate = trend.negotiation_count > 0 
+        ? Math.round((trend.content_requested_count / trend.negotiation_count) * 100) 
+        : 0;
       
-      const timeCount = omData[om].trends[month].time_to_cr_count;
-      const timeTotal = omData[om].trends[month].time_to_cr_total;
-      omData[om].trends[month].avg_days_to_cr = timeCount > 0 ? Math.round(timeTotal / timeCount) : 0;
+      trend.created_to_cr_rate = trend.created_count > 0 
+        ? Math.round((trend.reached_content_requested / trend.created_count) * 100) 
+        : 0;
+      
+      trend.avg_days_to_cr = trend.time_to_cr_count > 0 
+        ? Math.round(trend.time_to_cr_total / trend.time_to_cr_count) 
+        : 0;
     }
   }
   
@@ -275,18 +278,18 @@ module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=60");
 
-  const HSS_TOKEN = process.env.HSS_API_TOKEN;
-  const SUPERFEEDERS_TOKEN = process.env.SUPERFEEDERS_API_TOKEN;
-
-  if (!HSS_TOKEN || !SUPERFEEDERS_TOKEN) {
-    const missing = [
-      !HSS_TOKEN && "HSS_API_TOKEN",
-      !SUPERFEEDERS_TOKEN && "SUPERFEEDERS_API_TOKEN"
-    ].filter(Boolean).join(", ");
-    return res.status(500).json({ ok: false, error: "Missing env vars: " + missing });
-  }
-
   try {
+    const HSS_TOKEN = process.env.HSS_API_TOKEN;
+    const SUPERFEEDERS_TOKEN = process.env.SUPERFEEDERS_API_TOKEN;
+
+    if (!HSS_TOKEN || !SUPERFEEDERS_TOKEN) {
+      const missing = [
+        !HSS_TOKEN && "HSS_API_TOKEN",
+        !SUPERFEEDERS_TOKEN && "SUPERFEEDERS_API_TOKEN"
+      ].filter(Boolean).join(", ");
+      return res.status(500).json({ ok: false, error: "Missing env vars: " + missing });
+    }
+
     const currentMonth = prodMonth();
     const previousMonth = getPreviousMonth();
     const last12Months = getMonthsBack(12);
@@ -340,8 +343,9 @@ module.exports = async function handler(req, res) {
     console.error("OM Dashboard API error:", err);
     return res.status(500).json({ 
       ok: false, 
-      error: err.message,
-      stack: err.stack ? err.stack.substring(0, 500) : undefined
+      error: err.message || "Unknown error",
+      errorType: err.constructor.name,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
   }
 }
