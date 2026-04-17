@@ -15,27 +15,6 @@ const ALL_STATUSES = [
   "Never Heard Back"
 ];
 
-const ALLOWED_OMS_HSS = [
-  "Alejandro",
-  "Olivia",
-  "Jorge",
-  "Deborah",
-  "Chisom",
-  "Camila",
-  "Debby Anfani"
-];
-
-const ALLOWED_OMS_SUPERFEEDERS = [
-  "Alejandro",
-  "Olivia",
-  "Jorge",
-  "Deborah",
-  "Chisom",
-  "Jason",
-  "Camila",
-  "Debby Anfani"
-];
-
 async function getAccess(apiToken) {
   const res = await fetch(SERVER + "/api/v2.1/dtable/app-access-token/", {
     headers: { "Authorization": "Token " + apiToken, "Accept": "application/json" }
@@ -96,7 +75,7 @@ function getMonthsBack(count) {
   return months.reverse();
 }
 
-function processBaseData(rows, months, allowedOMs) {
+function processBaseData(rows, months) {
   const omData = {};
   
   for (const row of rows) {
@@ -107,9 +86,6 @@ function processBaseData(rows, months, allowedOMs) {
     const pm = (row["Prod Month"] || "").trim();
     
     if (!om || !status || !ALL_STATUSES.includes(status)) continue;
-    
-    // Filter by allowed OMs
-    if (!allowedOMs.includes(om)) continue;
     
     if (!omData[om]) {
       omData[om] = {
@@ -241,8 +217,8 @@ module.exports = async function handler(req, res) {
     ]);
 
     // ── Process both bases ──
-    const hssData = processBaseData(hssRows, last12Months, ALLOWED_OMS_HSS);
-    const superData = processBaseData(superRows, last12Months, ALLOWED_OMS_SUPERFEEDERS);
+    const hssData = processBaseData(hssRows, last12Months);
+    const superData = processBaseData(superRows, last12Months);
 
     // ── Build client quota tables ──
     const hssQuotaPrevious = buildClientQuotaTable(hssData, "previous");
