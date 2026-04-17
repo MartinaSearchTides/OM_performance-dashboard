@@ -15,7 +15,6 @@ const ALL_STATUSES = [
   "Never Heard Back"
 ];
 
-// Allowed OMs - normalized for comparison (lowercase, trimmed)
 const ALLOWED_OMS_HSS = [
   "alejandro",
   "olivia",
@@ -97,150 +96,148 @@ function getMonthsBack(count) {
   return months.reverse();
 }
 
+function parseDate(dateVal) {
+  if (!dateVal) return null;
+  try {
+    return new Date(String(dateVal).substring(0, 10));
+  } catch(e) {
+    return null;
+  }
+}
+
 function processBaseData(rows, months, allowedOMs) {
   const omData = {};
-  const foundOMs = new Set(); // Debug: track all OM names found
+  const foundOMs = new Set();
   
   for (const row of rows) {
-    const om = resolve(row["TEAM"]);
-    const client = resolve(row["CLIENT*"]);
-    const status = row["STATUS 1"];
-    const lv = parseFloat(row["LV"]) || 0;
-    const pm = (row["Prod Month"] || "").trim();
-    const createdDate = row["Created Date"] || row["created_date"] || "";
-    const contentRequestedDate = row["CONTENT DATE REQUESTED (from CM)"] || "";
-    
-    if (!om || !status || !ALL_STATUSES.includes(status)) continue;
-    
-    // Track all OMs found (for debugging)
-    foundOMs.add(om);
-    
-    // Filter by allowed OMs (normalize for comparison)
-    const omNormalized = om.toLowerCase().trim();
-    if (!allowedOMs.includes(omNormalized)) continue;
-    
-    if (!omData[om]) {
-      omData[om] = {
-        name: om,
-        currentMonth: {},
-        previousMonth: {},
-        trends: {},
-        clients: {}
-      };
-    }
-    
-    const current = prodMonth();
-    const previous = getPreviousMonth();
-    
-    // Current month data by status
-    if (pm === current) {
-      if (!omData[om].currentMonth[status]) {
-        omData[om].currentMonth[status] = { count: 0, lv: 0 };
-      }
-      omData[om].currentMonth[status].count += 1;
-      omData[om].currentMonth[status].lv += lv;
+    try {
+      const om = resolve(row["TEAM"]);
+      const client = resolve(row["CLIENT*"]);
+      const status = row["STATUS 1"];
+      const lv = parseFloat(row["LV"]) || 0;
+      const pm = (row["Prod Month"] || "").trim();
+      const createdDate = row["Created Date"] || row["created_date"] || "";
+      const contentRequestedDate = row["CONTENT DATE REQUESTED (from CM)"] || "";
       
-      // Track by client for current month
-      if (status === "Published" && client) {
-        if (!omData[om].clients[client]) omData[om].clients[client] = 0;
-        omData[om].clients[client] += lv;
-      }
-    }
-    
-    // Previous month data (Published only for Built quota)
-    if (pm === previous && status === "Published" && client) {
-      if (!omData[om].previousMonth[client]) omData[om].previousMonth[client] = 0;
-      omData[om].previousMonth[client] += lv;
-    }
-    
-    // Trends data (last 12 months)
-    if (months.includes(pm)) {
-      if (!omData[om].trends[pm]) {
-        omData[om].trends[pm] = {
-          total_count: 0,
-          total_lv: 0,
-          negotiation_count: 0,
-          negotiation_lv: 0,
-          content_requested_count: 0,
-          created_count: 0,
-          reached_content_requested: 0,
-          time_to_cr_total: 0,
-          time_to_cr_count: 0
+      if (!om || !status || !ALL_STATUSES.includes(status)) continue;
+      
+      foundOMs.add(om);
+      
+      const omNormalized = om.toLowerCase().trim();
+      if (!allowedOMs.includes(omNormalized)) continue;
+      
+      if (!omData[om]) {
+        omData[om] = {
+          name: om,
+          currentMonth: {},
+          previousMonth: {},
+          trends: {},
+          clients: {}
         };
       }
       
-      omData[om].trends[pm].total_count += 1;
-      omData[om].trends[pm].total_lv += lv;
+      const current = prodMonth();
+      const previous = getPreviousMonth();
       
-      if (status === "Negotiation") {
-        omData[om].trends[pm].negotiation_count += 1;
-        omData[om].trends[pm].negotiation_lv += lv;
-      }
-      
-      if (status === "Content Requested") {
-        omData[om].trends[pm].content_requested_count += 1;
-      }
-    }
-    
-    // Process Created Date for conversion tracking
-    if (createdDate) {
-      try {
-        const created = new Date(String(createdDate).substring(0, 10));
-        const createdMonth = created.toLocaleString("en-US", { month: "short", year: "numeric" });
+      if (pm === current) {
+        if (!omData[om].currentMonth[status]) {
+          omData[om].currentMonth[status] = { count: 0, lv: 0 };
+        }
+        omData[om].currentMonth[status].count += 1;
+        omData[om].currentMonth[status].lv += lv;
         
-        if (months.includes(createdMonth)) {
-          if (!omData[om].trends[createdMonth]) {
-            omData[om].trends[createdMonth] = {
-              total_count: 0,
-              total_lv: 0,
-              negotiation_count: 0,
-              negotiation_lv: 0,
-              content_requested_count: 0,
-              created_count: 0,
-              reached_content_requested: 0,
-              time_to_cr_total: 0,
-              time_to_cr_count: 0
-            };
-          }
+        if (status === "Published" && client) {
+          if (!omData[om].clients[client]) omData[om].clients[client] = 0;
+          omData[om].clients[client] += lv;
+        }
+      }
+      
+      if (pm === previous && status === "Published" && client) {
+        if (!omData[om].previousMonth[client]) omData[om].previousMonth[client] = 0;
+        omData[om].previousMonth[client] += lv;
+      }
+      
+      if (months.includes(pm)) {
+        if (!omData[om].trends[pm]) {
+          omData[om].trends[pm] = {
+            total_count: 0,
+            total_lv: 0,
+            negotiation_count: 0,
+            negotiation_lv: 0,
+            content_requested_count: 0,
+            created_count: 0,
+            reached_content_requested: 0,
+            time_to_cr_total: 0,
+            time_to_cr_count: 0
+          };
+        }
+        
+        omData[om].trends[pm].total_count += 1;
+        omData[om].trends[pm].total_lv += lv;
+        
+        if (status === "Negotiation") {
+          omData[om].trends[pm].negotiation_count += 1;
+          omData[om].trends[pm].negotiation_lv += lv;
+        }
+        
+        if (status === "Content Requested") {
+          omData[om].trends[pm].content_requested_count += 1;
+        }
+      }
+      
+      if (createdDate) {
+        const created = parseDate(createdDate);
+        if (created) {
+          const createdMonth = created.toLocaleString("en-US", { month: "short", year: "numeric" });
           
-          omData[om].trends[createdMonth].created_count += 1;
-          
-          // Check if this record reached Content Requested
-          if (contentRequestedDate) {
-            omData[om].trends[createdMonth].reached_content_requested += 1;
+          if (months.includes(createdMonth)) {
+            if (!omData[om].trends[createdMonth]) {
+              omData[om].trends[createdMonth] = {
+                total_count: 0,
+                total_lv: 0,
+                negotiation_count: 0,
+                negotiation_lv: 0,
+                content_requested_count: 0,
+                created_count: 0,
+                reached_content_requested: 0,
+                time_to_cr_total: 0,
+                time_to_cr_count: 0
+              };
+            }
             
-            // Calculate time to content request (in days)
-            try {
-              const crDate = new Date(String(contentRequestedDate).substring(0, 10));
-              const diffTime = Math.abs(crDate - created);
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            omData[om].trends[createdMonth].created_count += 1;
+            
+            if (contentRequestedDate) {
+              omData[om].trends[createdMonth].reached_content_requested += 1;
               
-              omData[om].trends[createdMonth].time_to_cr_total += diffDays;
-              omData[om].trends[createdMonth].time_to_cr_count += 1;
-            } catch(e) {
-              // Skip if date parsing fails
+              const crDate = parseDate(contentRequestedDate);
+              if (crDate) {
+                const diffTime = Math.abs(crDate - created);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                omData[om].trends[createdMonth].time_to_cr_total += diffDays;
+                omData[om].trends[createdMonth].time_to_cr_count += 1;
+              }
             }
           }
         }
-      } catch(e) {
-        // Skip if date parsing fails
       }
+    } catch(e) {
+      console.error("Error processing row:", e);
+      continue;
     }
   }
   
-  // Calculate conversion rates and averages for trends
   for (const om in omData) {
     for (const month in omData[om].trends) {
       const neg = omData[om].trends[month].negotiation_count;
       const cr = omData[om].trends[month].content_requested_count;
       omData[om].trends[month].conversion_rate = neg > 0 ? Math.round((cr / neg) * 100) : 0;
       
-      // Calculate Created → Content Requested conversion rate
       const created = omData[om].trends[month].created_count;
       const reached = omData[om].trends[month].reached_content_requested;
       omData[om].trends[month].created_to_cr_rate = created > 0 ? Math.round((reached / created) * 100) : 0;
       
-      // Calculate average time to content request (in days)
       const timeCount = omData[om].trends[month].time_to_cr_count;
       const timeTotal = omData[om].trends[month].time_to_cr_total;
       omData[om].trends[month].avg_days_to_cr = timeCount > 0 ? Math.round(timeTotal / timeCount) : 0;
@@ -267,7 +264,6 @@ function buildClientQuotaTable(omData, source) {
     }
   }
   
-  // Round totals
   for (const client in clients) {
     clients[client].total = Math.round(clients[client].total * 100) / 100;
   }
@@ -295,27 +291,22 @@ module.exports = async function handler(req, res) {
     const previousMonth = getPreviousMonth();
     const last12Months = getMonthsBack(12);
 
-    // ── Auth both bases in parallel ──
     const [hssAccess, superAccess] = await Promise.all([
       getAccess(HSS_TOKEN),
       getAccess(SUPERFEEDERS_TOKEN)
     ]);
 
-    // ── Fetch data in parallel ──
     const [hssRows, superRows] = await Promise.all([
       listRows(hssAccess, "OM", "view_OMdashboard"),
       listRows(superAccess, "OM", "SuperFeeder_dashboard OM")
     ]);
 
-    // ── Process both bases ──
     const hssResult = processBaseData(hssRows, last12Months, ALLOWED_OMS_HSS);
     const superResult = processBaseData(superRows, last12Months, ALLOWED_OMS_SUPERFEEDERS);
 
-    // ── Build client quota tables ──
     const hssQuotaPrevious = buildClientQuotaTable(hssResult.omData, "previous");
     const superQuotaPrevious = buildClientQuotaTable(superResult.omData, "previous");
 
-    // ── Format response ──
     const response = {
       ok: true,
       generated: new Date().toISOString(),
@@ -347,6 +338,10 @@ module.exports = async function handler(req, res) {
 
   } catch(err) {
     console.error("OM Dashboard API error:", err);
-    return res.status(500).json({ ok: false, error: err.message });
+    return res.status(500).json({ 
+      ok: false, 
+      error: err.message,
+      stack: err.stack ? err.stack.substring(0, 500) : undefined
+    });
   }
 }
