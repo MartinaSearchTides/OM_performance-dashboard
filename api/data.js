@@ -125,6 +125,17 @@ function initTrendMonth(month) {
 function processBaseData(rows, months, allowedOMs) {
   const omData = {};
   const foundOMs = new Set();
+  const monthCache = new Map();
+  const current = prodMonth();
+  const previous = getPreviousMonth();
+  
+  function getMonthString(date) {
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    if (monthCache.has(key)) return monthCache.get(key);
+    const monthStr = date.toLocaleString("en-US", { month: "short", year: "numeric" });
+    monthCache.set(key, monthStr);
+    return monthStr;
+  }
   
   for (const row of rows) {
     try {
@@ -149,14 +160,11 @@ function processBaseData(rows, months, allowedOMs) {
           currentMonth: {},
           previousMonth: {},
           trends: {},
-          clients: {}
-        };
-      }
-      
-      const current = prodMonth();
-      const previous = getPreviousMonth();
-      
-      if (pm === current) {
+        clients: {}
+      };
+    }
+    
+    if (pm === current) {
         if (!omData[om].currentMonth[status]) {
           omData[om].currentMonth[status] = { count: 0, lv: 0 };
         }
@@ -192,11 +200,11 @@ function processBaseData(rows, months, allowedOMs) {
         }
       }
       
-      const createdDate = row["Created Date"] || row["created_date"] || "";
-      if (createdDate) {
-        const created = parseDate(createdDate);
+      const createdDateVal = row["Created Date"] || row["created_date"];
+      if (createdDateVal) {
+        const created = parseDate(createdDateVal);
         if (created) {
-          const createdMonth = created.toLocaleString("en-US", { month: "short", year: "numeric" });
+          const createdMonth = getMonthString(created);
           
           if (months.includes(createdMonth)) {
             if (!omData[om].trends[createdMonth]) {
@@ -205,18 +213,20 @@ function processBaseData(rows, months, allowedOMs) {
             
             omData[om].trends[createdMonth].created_count += 1;
             
-            const contentRequestedDate = row["CONTENT DATE REQUESTED (from CM)"] || "";
-            if (contentRequestedDate) {
-              omData[om].trends[createdMonth].reached_content_requested += 1;
-              
-              const crDate = parseDate(contentRequestedDate);
-              if (crDate && created) {
-                const diffTime = Math.abs(crDate.getTime() - created.getTime());
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const contentRequestedDateVal = row["CONTENT DATE REQUESTED (from CM)"];
+            if (contentRequestedDateVal) {
+              const crDate = parseDate(contentRequestedDateVal);
+              if (crDate) {
+                omData[om].trends[createdMonth].reached_content_requested += 1;
                 
-                if (diffDays >= 0 && diffDays < 1000) {
-                  omData[om].trends[createdMonth].time_to_cr_total += diffDays;
-                  omData[om].trends[createdMonth].time_to_cr_count += 1;
+                const diffTime = crDate.getTime() - created.getTime();
+                if (diffTime >= 0) {
+                  const diffDays = Math.ceil(diffTime / 86400000);
+                  
+                  if (diffDays < 1000) {
+                    omData[om].trends[createdMonth].time_to_cr_total += diffDays;
+                    omData[om].trends[createdMonth].time_to_cr_count += 1;
+                  }
                 }
               }
             }
