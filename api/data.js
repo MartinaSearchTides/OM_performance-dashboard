@@ -108,7 +108,28 @@ function parseDate(dateVal) {
   }
 }
 
-function initTrendMonth(month) {
+function parseFinalUsd(raw) {
+  if (raw === undefined || raw === null) return null;
+  let v = Array.isArray(raw) ? (raw[0] ?? null) : raw;
+  if (v !== null && typeof v === "object") v = v.display_value ?? v.name ?? null;
+  if (v === null || v === undefined) return null;
+  if (typeof v === "string" && v.trim() === "") return null;
+  if (typeof v === "number" && !isNaN(v)) return v;
+  const n = parseFloat(String(v).replace(/[$,\s]/g, ""));
+  return isNaN(n) ? null : n;
+}
+
+function getFinalUsd(row) {
+  for (const key of ["FINAL $", "FINAL$", "Final $", "\u{1F539}FINAL $", "\u{1F539} FINAL $"]) {
+    if (Object.prototype.hasOwnProperty.call(row, key)) {
+      const n = parseFinalUsd(row[key]);
+      if (n !== null) return n;
+    }
+  }
+  return null;
+}
+
+function initTrendMonth() {
   return {
     total_count: 0,
     total_lv: 0,
@@ -118,7 +139,9 @@ function initTrendMonth(month) {
     created_count: 0,
     reached_content_requested: 0,
     time_to_cr_total: 0,
-    time_to_cr_count: 0
+    time_to_cr_count: 0,
+    total_cost: 0,
+    fee_count: 0
   };
 }
 
@@ -198,6 +221,14 @@ function processBaseData(rows, months, allowedOMs) {
         if (status === "Content Requested") {
           omData[om].trends[pm].content_requested_count += 1;
         }
+        
+        if (status === "Published") {
+          const fee = getFinalUsd(row);
+          if (fee !== null) {
+            omData[om].trends[pm].total_cost += fee;
+            omData[om].trends[pm].fee_count += 1;
+          }
+        }
       }
       
       const createdDateVal = row["Created Date"] || row["created_date"];
@@ -253,6 +284,11 @@ function processBaseData(rows, months, allowedOMs) {
       
       trend.avg_days_to_cr = trend.time_to_cr_count > 0 
         ? Math.round(trend.time_to_cr_total / trend.time_to_cr_count) 
+        : 0;
+      
+      trend.total_cost = Math.round(trend.total_cost * 100) / 100;
+      trend.avg_fee_per_link = trend.fee_count > 0
+        ? Math.round((trend.total_cost / trend.fee_count) * 100) / 100
         : 0;
     }
   }

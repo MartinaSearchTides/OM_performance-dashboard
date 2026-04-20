@@ -750,9 +750,11 @@ function renderOmDetailContent(source, om) {
   
   const avgDaysToCr    = calcAvg(recentMonths, 'avg_days_to_cr');
   const avgCreatedCr   = calcAvg(recentMonths, 'created_to_cr_rate');
+  const avgFeePerLink  = calcAvg(recentMonths, 'avg_fee_per_link');
   
   const prevAvgDaysToCr  = calcAvg(prevMonths, 'avg_days_to_cr');
   const prevAvgCreatedCr = calcAvg(prevMonths, 'created_to_cr_rate');
+  const prevAvgFeePerLink = calcAvg(prevMonths, 'avg_fee_per_link');
   
   // trend badge: direction, delta, higherIsBetter
   function trendBadge(current, prev, higherIsBetter, unit) {
@@ -764,7 +766,7 @@ function renderOmDetailContent(source, om) {
     const cls = isGood ? (isUp ? 'up-good' : 'down-good') : (isUp ? 'up-bad' : 'down-bad');
     const arrow = isUp ? '↑' : '↓';
     const absDelta = Math.abs(delta);
-    const deltaStr = unit === '%' ? absDelta + '%' : (unit === 'days' ? absDelta + ' days' : String(absDelta));
+    const deltaStr = unit === '%' ? absDelta + '%' : (unit === 'days' ? absDelta + ' days' : (unit === '$' ? '$' + fmt(absDelta) : String(absDelta)));
     return '<span class="kpi-trend ' + cls + '">' + arrow + ' ' + deltaStr + ' vs prev 3m</span>';
   }
   
@@ -805,6 +807,13 @@ function renderOmDetailContent(source, om) {
     '<div class="kpi-sub">avg last 3 months</div>' +
     trendBadge(avgDaysToCr, prevAvgDaysToCr, false, 'days') +
     '<div class="kpi-trend-label">lower is better · trend vs previous 3m</div>' +
+    '</div>';
+  html += '<div class="kpi-card accent-purple">' +
+    '<div class="kpi-label">Avg Sponsored Fee per Published Link</div>' +
+    '<div class="kpi-value">' + (avgFeePerLink > 0 ? '$' + fmt(avgFeePerLink) : '—') + '</div>' +
+    '<div class="kpi-sub">avg last 3 months · only links with FINAL $ filled</div>' +
+    trendBadge(avgFeePerLink, prevAvgFeePerLink, false, '$') +
+    '<div class="kpi-trend-label">lower = better negotiation · trend vs previous 3m</div>' +
     '</div>';
   html += '</div>';
   
@@ -879,7 +888,9 @@ function renderOmDetailContent(source, om) {
     { metric: 'total_count', label: 'Total Records per Month', format: 'int' },
     { metric: 'total_lv', label: 'Total LV per Month', format: 'int' },
     { metric: 'created_to_cr_rate', label: 'Created → Content Requested Conversion Rate (%)', format: 'pct' },
-    { metric: 'avg_days_to_cr', label: 'Average Days to Content Request', format: 'days' }
+    { metric: 'avg_days_to_cr', label: 'Average Days to Content Request', format: 'days' },
+    { metric: 'total_cost', label: 'Total Cost of Published Links (USD)', format: 'usd' },
+    { metric: 'avg_fee_per_link', label: 'Average Sponsored Fee per Published Link (USD)', format: 'usd' }
   ];
   
   trendDefs.forEach((def, idx) => {
@@ -893,6 +904,7 @@ function renderOmDetailContent(source, om) {
       if (v > 0) {
         if (def.format === 'pct') display = v + '%';
         else if (def.format === 'days') display = v + ' days';
+        else if (def.format === 'usd') display = '$' + fmt(v);
         else display = fmt(v);
       }
       html += '<tr><td class="om-name">' + esc(month) + '</td><td class="num">' + display + '</td></tr>';
@@ -1258,6 +1270,46 @@ function renderTrends(baseData, containerId, period = 12) {
   });
   html += '</tbody></table></div>';
   
+  // 5. Total Cost of Published Links (FINAL $)
+  html += '<div class="data-card"><div class="card-header">Total Cost of Published Links (USD)<br><small style="font-size: 11px; font-weight: 400; color: var(--muted); font-family: var(--fm);">Sum of FINAL $ for Published records · only links with FINAL $ filled in</small></div>';
+  const chartId5 = 'chart-total-cost-' + containerId;
+  html += '<div class="chart-container"><canvas id="' + chartId5 + '"></canvas></div>';
+  
+  html += '<table class="data-table"><thead><tr><th>Month</th>';
+  oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
+  html += '<th class="num">Total</th></tr></thead><tbody>';
+  
+  months.forEach(month => {
+    html += '<tr><td class="om-name">' + esc(month) + '</td>';
+    let rowTotal = 0;
+    oms.forEach(om => {
+      const val = baseData.data[om]?.trends[month]?.total_cost || 0;
+      rowTotal += val;
+      html += '<td class="num">' + (val > 0 ? '$' + fmt(val) : '-') + '</td>';
+    });
+    html += '<td class="num"><strong>' + (rowTotal > 0 ? '$' + fmt(rowTotal) : '-') + '</strong></td></tr>';
+  });
+  html += '</tbody></table></div>';
+  
+  // 6. Average Sponsored Fee per Published Link
+  html += '<div class="data-card"><div class="card-header">Average Sponsored Fee per Published Link (USD)<br><small style="font-size: 11px; font-weight: 400; color: var(--muted); font-family: var(--fm);">Average FINAL $ per published link · reflects negotiation efficiency</small></div>';
+  const chartId6 = 'chart-avg-fee-' + containerId;
+  html += '<div class="chart-container"><canvas id="' + chartId6 + '"></canvas></div>';
+  
+  html += '<table class="data-table"><thead><tr><th>Month</th>';
+  oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
+  html += '</tr></thead><tbody>';
+  
+  months.forEach(month => {
+    html += '<tr><td class="om-name">' + esc(month) + '</td>';
+    oms.forEach(om => {
+      const val = baseData.data[om]?.trends[month]?.avg_fee_per_link || 0;
+      html += '<td class="num">' + (val > 0 ? '$' + fmt(val) : '-') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  
   container.innerHTML = html;
   
   // Render all charts
@@ -1265,6 +1317,8 @@ function renderTrends(baseData, containerId, period = 12) {
   renderLineChart(chartId2, months, oms, baseData, 'total_lv');
   renderLineChart(chartId3, months, oms, baseData, 'created_to_cr_rate');
   renderLineChart(chartId4, months, oms, baseData, 'avg_days_to_cr');
+  renderLineChart(chartId5, months, oms, baseData, 'total_cost');
+  renderLineChart(chartId6, months, oms, baseData, 'avg_fee_per_link');
 }
 
 function renderLineChart(chartId, months, oms, baseData, metric) {
