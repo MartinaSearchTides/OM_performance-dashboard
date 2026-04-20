@@ -391,6 +391,106 @@ body {
   color: #fff;
 }
 
+/* Sub-tabs for individual OM view */
+.sub-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 2rem;
+  padding: 10px;
+  background: var(--surface3);
+  border-radius: 10px;
+}
+.sub-tab {
+  padding: 10px 18px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--fm);
+  letter-spacing: 0.05em;
+  color: var(--muted2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sub-tab:hover {
+  color: var(--purple);
+  background: var(--surface);
+}
+.sub-tab.active {
+  background: var(--purple);
+  color: #fff;
+  border-color: var(--purple);
+}
+
+/* KPI cards for OM detail */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+.kpi-card.accent-purple { border-top: 3px solid var(--purple); }
+.kpi-card.accent-teal { border-top: 3px solid var(--teal); }
+.kpi-card.accent-amber { border-top: 3px solid var(--amber); }
+.kpi-card.accent-green { border-top: 3px solid var(--green); }
+.kpi-card.accent-orange { border-top: 3px solid var(--orange); }
+.kpi-card.accent-red { border-top: 3px solid var(--red); }
+.kpi-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-family: var(--fm);
+  margin-bottom: 0.5rem;
+}
+.kpi-value {
+  font-family: var(--fd);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+.kpi-sub {
+  font-size: 11px;
+  color: var(--muted2);
+  font-family: var(--fm);
+  margin-top: 0.35rem;
+}
+.kpi-sub strong {
+  color: var(--purple);
+  font-weight: 600;
+}
+
+.om-header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border2);
+}
+.om-header h2 {
+  font-family: var(--fd);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.om-header .om-meta {
+  font-family: var(--fm);
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
 @media (max-width: 900px) {
   #dashboard { padding: 0 1rem 2rem; }
   .section-title { font-size: 20px; }
@@ -431,7 +531,9 @@ body {
     <div class="tab active" onclick="switchTab('statuses')">Statuses</div>
     <div class="tab" onclick="switchTab('quota')">Built Quota from Previous Month</div>
     <div class="tab" onclick="switchTab('trends')">Trends</div>
+    <div class="tab" onclick="switchTab('om-detail')">OM Detail (1:1)</div>
     <div class="tab" onclick="switchTab('superfeeders')">Superfeeders</div>
+    <div class="tab" onclick="switchTab('super-om-detail')">Superfeeders OM Detail (1:1)</div>
   </div>
 
   <div class="tab-content active" id="tab-statuses">
@@ -450,6 +552,11 @@ body {
     <div id="trends-content"></div>
   </div>
 
+  <div class="tab-content" id="tab-om-detail">
+    <div class="sub-tabs" id="om-detail-subtabs"></div>
+    <div id="om-detail-content"></div>
+  </div>
+
   <div class="tab-content" id="tab-superfeeders">
     <h2 class="section-title">Superfeeders - Statuses</h2>
     <div id="super-statuses-content"></div>
@@ -464,6 +571,11 @@ body {
     </div>
     <div id="super-trends-content"></div>
   </div>
+
+  <div class="tab-content" id="tab-super-om-detail">
+    <div class="sub-tabs" id="super-om-detail-subtabs"></div>
+    <div id="super-om-detail-content"></div>
+  </div>
 </div>
 
 <script>
@@ -471,6 +583,10 @@ let globalData = null;
 let trendPeriod = 12;
 let superTrendPeriod = 12;
 let charts = {};
+let omDetailState = {
+  hss: { selectedOm: null, period: 12 },
+  super: { selectedOm: null, period: 12 }
+};
 
 const CHART_COLORS = [
   '#5b4de0', // Fialová (Purple)
@@ -487,8 +603,8 @@ function fmt(v) { return Math.round(v||0).toLocaleString("en-US"); }
 function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 function switchTab(tab) {
-  const tabs = ['statuses', 'quota', 'trends', 'superfeeders'];
-  document.querySelectorAll(".tab").forEach((t, i) => {
+  const tabs = ['statuses', 'quota', 'trends', 'om-detail', 'superfeeders', 'super-om-detail'];
+  document.querySelectorAll(".tabs > .tab").forEach((t, i) => {
     t.classList.toggle("active", tabs[i] === tab);
   });
   tabs.forEach(t => {
@@ -510,6 +626,332 @@ function setSuperTrendPeriod(months) {
     btn.classList.toggle("active", (i === 0 && months === 6) || (i === 1 && months === 12));
   });
   if (globalData) renderTrends(globalData.superfeeders, 'super-trends-content', superTrendPeriod);
+}
+
+function initOmDetail(source) {
+  const baseData = source === 'hss' ? globalData.hss : globalData.superfeeders;
+  const subtabsId = source === 'hss' ? 'om-detail-subtabs' : 'super-om-detail-subtabs';
+  const subtabs = document.getElementById(subtabsId);
+  if (!subtabs) return;
+  
+  const oms = baseData.oms;
+  if (!oms || oms.length === 0) {
+    subtabs.innerHTML = '';
+    const contentId = source === 'hss' ? 'om-detail-content' : 'super-om-detail-content';
+    document.getElementById(contentId).innerHTML = 
+      '<div class="data-card"><p style="color: var(--muted);">No OM data available.</p></div>';
+    return;
+  }
+  
+  subtabs.innerHTML = oms.map(om => 
+    '<button class="sub-tab" onclick="selectOmDetail(\'' + source + '\', \'' + esc(om).replace(/'/g, "\\'") + '\')">' + esc(om) + '</button>'
+  ).join('');
+  
+  if (!omDetailState[source].selectedOm || !oms.includes(omDetailState[source].selectedOm)) {
+    omDetailState[source].selectedOm = oms[0];
+  }
+  selectOmDetail(source, omDetailState[source].selectedOm);
+}
+
+function selectOmDetail(source, om) {
+  omDetailState[source].selectedOm = om;
+  const subtabsId = source === 'hss' ? 'om-detail-subtabs' : 'super-om-detail-subtabs';
+  document.querySelectorAll('#' + subtabsId + ' .sub-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent === om);
+  });
+  renderOmDetailContent(source, om);
+}
+
+function setOmDetailPeriod(source, months) {
+  omDetailState[source].period = months;
+  renderOmDetailContent(source, omDetailState[source].selectedOm);
+}
+
+function renderOmDetailContent(source, om) {
+  const baseData = source === 'hss' ? globalData.hss : globalData.superfeeders;
+  const contentId = source === 'hss' ? 'om-detail-content' : 'super-om-detail-content';
+  const container = document.getElementById(contentId);
+  const period = omDetailState[source].period;
+  const months = globalData.months.slice(-period);
+  const currentMonth = globalData.current_month;
+  const previousMonth = globalData.previous_month;
+  const omData = baseData.data[om];
+  
+  if (!omData) {
+    container.innerHTML = '<div class="data-card"><p style="color: var(--muted);">No data for ' + esc(om) + '</p></div>';
+    return;
+  }
+  
+  // === Calculate KPI values ===
+  let omCurrentPublishedLV = 0;
+  let omCurrentPublishedCount = 0;
+  let totalCurrentPublishedLV = 0;
+  baseData.oms.forEach(o => {
+    const d = baseData.data[o]?.currentMonth["Published"];
+    if (d) {
+      totalCurrentPublishedLV += d.lv || 0;
+      if (o === om) {
+        omCurrentPublishedLV = d.lv || 0;
+        omCurrentPublishedCount = d.count || 0;
+      }
+    }
+  });
+  const currentSharePct = totalCurrentPublishedLV > 0 
+    ? Math.round((omCurrentPublishedLV / totalCurrentPublishedLV) * 100) : 0;
+  
+  let omPreviousLV = 0;
+  let totalPreviousLV = 0;
+  (baseData.quota_previous || []).forEach(client => {
+    totalPreviousLV += client.total || 0;
+    omPreviousLV += client.oms[om] || 0;
+  });
+  const previousSharePct = totalPreviousLV > 0 
+    ? Math.round((omPreviousLV / totalPreviousLV) * 100) : 0;
+  
+  const negData = omData.currentMonth["Negotiation"] || { count: 0, lv: 0 };
+  const crData = omData.currentMonth["Content Requested"] || { count: 0, lv: 0 };
+  
+  // Recent trend averages (last 3 months, excluding current partial month may be ok to include)
+  const recentMonths = months.slice(-3);
+  let convSum = 0, convCount = 0;
+  let daysSum = 0, daysCount = 0;
+  let createdCrSum = 0, createdCrCount = 0;
+  recentMonths.forEach(m => {
+    const t = omData.trends[m];
+    if (t) {
+      if (t.conversion_rate > 0) { convSum += t.conversion_rate; convCount++; }
+      if (t.avg_days_to_cr > 0) { daysSum += t.avg_days_to_cr; daysCount++; }
+      if (t.created_to_cr_rate > 0) { createdCrSum += t.created_to_cr_rate; createdCrCount++; }
+    }
+  });
+  const avgConvRate = convCount > 0 ? Math.round(convSum / convCount) : 0;
+  const avgDaysToCr = daysCount > 0 ? Math.round(daysSum / daysCount) : 0;
+  const avgCreatedCr = createdCrCount > 0 ? Math.round(createdCrSum / createdCrCount) : 0;
+  
+  // === Build HTML ===
+  let html = '';
+  
+  // Header
+  html += '<div class="om-header">';
+  html += '<h2>' + esc(om) + '</h2>';
+  html += '<span class="om-meta">' + currentMonth + ' · individual performance view</span>';
+  html += '</div>';
+  
+  // KPI Cards
+  html += '<div class="kpi-grid">';
+  html += '<div class="kpi-card accent-teal">' +
+    '<div class="kpi-label">Published LV - ' + esc(currentMonth) + '</div>' +
+    '<div class="kpi-value">' + fmt(omCurrentPublishedLV) + '</div>' +
+    '<div class="kpi-sub">' + fmt(omCurrentPublishedCount) + ' records · <strong>' + currentSharePct + '%</strong> of team total</div>' +
+    '</div>';
+  html += '<div class="kpi-card accent-purple">' +
+    '<div class="kpi-label">Published LV - ' + esc(previousMonth) + '</div>' +
+    '<div class="kpi-value">' + fmt(omPreviousLV) + '</div>' +
+    '<div class="kpi-sub"><strong>' + previousSharePct + '%</strong> of total client quota</div>' +
+    '</div>';
+  html += '<div class="kpi-card accent-amber">' +
+    '<div class="kpi-label">In Negotiation (now)</div>' +
+    '<div class="kpi-value">' + fmt(negData.count) + '</div>' +
+    '<div class="kpi-sub">LV: ' + fmt(negData.lv) + '</div>' +
+    '</div>';
+  html += '<div class="kpi-card accent-orange">' +
+    '<div class="kpi-label">Content Requested (now)</div>' +
+    '<div class="kpi-value">' + fmt(crData.count) + '</div>' +
+    '<div class="kpi-sub">LV: ' + fmt(crData.lv) + '</div>' +
+    '</div>';
+  html += '<div class="kpi-card accent-green">' +
+    '<div class="kpi-label">Avg Negotiation → CR</div>' +
+    '<div class="kpi-value">' + avgConvRate + '%</div>' +
+    '<div class="kpi-sub">avg last 3 months</div>' +
+    '</div>';
+  html += '<div class="kpi-card accent-red">' +
+    '<div class="kpi-label">Avg Days Created → CR</div>' +
+    '<div class="kpi-value">' + avgDaysToCr + '</div>' +
+    '<div class="kpi-sub">days · avg last 3 months</div>' +
+    '</div>';
+  html += '</div>';
+  
+  // 1. Statuses table for this OM
+  html += '<div class="data-card"><div class="card-header">Statuses - ' + esc(currentMonth) + '</div>';
+  html += '<table class="data-table"><thead><tr><th>Status</th><th class="num">Count</th><th class="num">LV</th></tr></thead><tbody>';
+  const statusClasses = {
+    "Published": "status-row-published",
+    "Pending": "status-row-pending",
+    "Content Requested": "status-row-content-requested",
+    "Ready for Delivery": "status-row-ready",
+    "Revisions Requested": "status-row-revisions",
+    "Site Approved": "status-row-approved"
+  };
+  let tc = 0, tl = 0;
+  globalData.statuses.forEach(status => {
+    const rowClass = statusClasses[status] || '';
+    const d = omData.currentMonth[status] || { count: 0, lv: 0 };
+    tc += d.count; tl += d.lv;
+    html += '<tr class="' + rowClass + '"><td class="om-name">' + esc(status) + '</td>' +
+      '<td class="num">' + fmt(d.count) + '</td>' +
+      '<td class="num">' + fmt(d.lv) + '</td></tr>';
+  });
+  html += '<tr><td class="om-name"><strong>Total</strong></td>' +
+    '<td class="num"><strong>' + fmt(tc) + '</strong></td>' +
+    '<td class="num"><strong>' + fmt(tl) + '</strong></td></tr>';
+  html += '</tbody></table></div>';
+  
+  // 2. Built Quota - clients this OM contributed to (previous month)
+  const clientRows = (baseData.quota_previous || [])
+    .filter(c => (c.oms[om] || 0) > 0)
+    .map(c => ({
+      client: c.client,
+      omLv: c.oms[om] || 0,
+      total: c.total,
+      pct: c.total > 0 ? Math.round(((c.oms[om] || 0) / c.total) * 100) : 0
+    }))
+    .sort((a, b) => b.omLv - a.omLv);
+  
+  html += '<div class="data-card"><div class="card-header">Built Quota - ' + esc(previousMonth) + ' · Clients contributed to</div>';
+  if (clientRows.length === 0) {
+    html += '<p style="color: var(--muted); padding: 1rem 0;">No published records for ' + esc(previousMonth) + '.</p>';
+  } else {
+    html += '<table class="data-table"><thead><tr><th>Client</th><th class="num">' + esc(om) + ' LV</th><th class="num">Client Total LV</th><th class="num">Share</th></tr></thead><tbody>';
+    clientRows.forEach(r => {
+      html += '<tr><td class="om-name">' + esc(r.client) + '</td>' +
+        '<td class="num">' + fmt(r.omLv) + '</td>' +
+        '<td class="num">' + fmt(r.total) + '</td>' +
+        '<td class="num">' + r.pct + '%</td></tr>';
+    });
+    const totalOmLv = clientRows.reduce((s, r) => s + r.omLv, 0);
+    html += '<tr><td class="om-name"><strong>Total</strong></td>' +
+      '<td class="num"><strong>' + fmt(totalOmLv) + '</strong></td>' +
+      '<td class="num"><strong>' + fmt(totalPreviousLV) + '</strong></td>' +
+      '<td class="num"><strong>' + previousSharePct + '%</strong></td></tr>';
+    html += '</tbody></table>';
+    
+    // Pie chart: OM vs rest of team
+    const pieId = 'chart-om-share-' + source;
+    html += '<div class="chart-container chart-small" style="margin-top: 1.5rem;"><canvas id="' + pieId + '"></canvas></div>';
+  }
+  html += '</div>';
+  
+  // 3. Trends (toggle + charts)
+  html += '<h2 class="section-title">Trends</h2>';
+  html += '<div class="toggle-group">' +
+    '<button class="toggle-btn ' + (period === 6 ? 'active' : '') + '" onclick="setOmDetailPeriod(\'' + source + '\', 6)">6 Months</button>' +
+    '<button class="toggle-btn ' + (period === 12 ? 'active' : '') + '" onclick="setOmDetailPeriod(\'' + source + '\', 12)">12 Months</button>' +
+    '</div>';
+  
+  const trendDefs = [
+    { metric: 'total_count', label: 'Total Records per Month', format: 'int' },
+    { metric: 'total_lv', label: 'Total LV per Month', format: 'int' },
+    { metric: 'created_to_cr_rate', label: 'Created → Content Requested Conversion Rate (%)', format: 'pct' },
+    { metric: 'avg_days_to_cr', label: 'Average Days to Content Request', format: 'days' },
+    { metric: 'negotiation_count', label: 'Records in Negotiation Status (by Prod Month)', format: 'int' },
+    { metric: 'negotiation_lv', label: 'LV in Negotiation Status (by Prod Month)', format: 'int' },
+    { metric: 'conversion_rate', label: 'Negotiation → Content Requested Conversion Rate (%)', format: 'pct' }
+  ];
+  
+  trendDefs.forEach((def, idx) => {
+    const chartId = 'chart-omdet-' + source + '-' + idx;
+    html += '<div class="data-card"><div class="card-header">' + def.label + '</div>';
+    html += '<div class="chart-container"><canvas id="' + chartId + '"></canvas></div>';
+    html += '<table class="data-table"><thead><tr><th>Month</th><th class="num">' + esc(om) + '</th></tr></thead><tbody>';
+    months.forEach(month => {
+      const v = omData.trends[month]?.[def.metric] || 0;
+      let display = '-';
+      if (v > 0) {
+        if (def.format === 'pct') display = v + '%';
+        else if (def.format === 'days') display = v + ' days';
+        else display = fmt(v);
+      }
+      html += '<tr><td class="om-name">' + esc(month) + '</td><td class="num">' + display + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  });
+  
+  container.innerHTML = html;
+  
+  // Render pie chart (OM vs rest)
+  if (clientRows.length > 0) {
+    const pieId = 'chart-om-share-' + source;
+    const ctx = document.getElementById(pieId);
+    if (ctx) {
+      if (charts[pieId]) charts[pieId].destroy();
+      const rest = Math.max(0, totalPreviousLV - omPreviousLV);
+      charts[pieId] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: [om, 'Rest of team'],
+          datasets: [{
+            data: [omPreviousLV, rest],
+            backgroundColor: ['#5b4de0', '#eeecea'],
+            borderWidth: 2,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right' },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const value = fmt(context.parsed);
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const pct = total > 0 ? Math.round((context.parsed / total) * 100) : 0;
+                  return context.label + ': ' + value + ' (' + pct + '%)';
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+  }
+  
+  // Render single-line trend charts
+  trendDefs.forEach((def, idx) => {
+    const chartId = 'chart-omdet-' + source + '-' + idx;
+    const ctx = document.getElementById(chartId);
+    if (!ctx) return;
+    if (charts[chartId]) charts[chartId].destroy();
+    
+    charts[chartId] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: months,
+        datasets: [{
+          label: om,
+          data: months.map(m => omData.trends[m]?.[def.metric] || 0),
+          borderColor: '#5b4de0',
+          backgroundColor: 'rgba(91, 77, 224, 0.12)',
+          borderWidth: 2.5,
+          tension: 0.3,
+          fill: true,
+          pointRadius: 4,
+          pointBackgroundColor: '#5b4de0'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                const v = ctx.parsed.y;
+                if (def.format === 'pct') return om + ': ' + v + '%';
+                if (def.format === 'days') return om + ': ' + v + ' days';
+                return om + ': ' + fmt(v);
+              }
+            }
+          }
+        },
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  });
 }
 
 async function loadData() {
@@ -534,10 +976,12 @@ async function loadData() {
     renderStatuses(json.hss, 'statuses-content');
     renderQuota(json.hss, 'quota-content', json.previous_month);
     renderTrends(json.hss, 'trends-content');
+    initOmDetail('hss');
     
     renderStatuses(json.superfeeders, 'super-statuses-content');
     renderQuota(json.superfeeders, 'super-quota-content', json.previous_month);
     renderTrends(json.superfeeders, 'super-trends-content', superTrendPeriod);
+    initOmDetail('super');
 
     loadScreen.style.display = "none";
     dash.style.display = "block";
