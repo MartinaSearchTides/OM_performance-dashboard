@@ -470,6 +470,30 @@ body {
   font-weight: 600;
 }
 
+.kpi-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-family: var(--fm);
+  font-weight: 600;
+  margin-top: 0.5rem;
+  padding: 3px 8px;
+  border-radius: 20px;
+}
+.kpi-trend.up-good   { background: rgba(26,138,82,0.12);  color: #1a8a52; }
+.kpi-trend.up-bad    { background: rgba(192,57,43,0.12);  color: #c0392b; }
+.kpi-trend.down-good { background: rgba(26,138,82,0.12);  color: #1a8a52; }
+.kpi-trend.down-bad  { background: rgba(192,57,43,0.12);  color: #c0392b; }
+.kpi-trend.neutral   { background: rgba(136,133,128,0.12); color: var(--muted2); }
+.kpi-trend-label {
+  font-size: 10px;
+  font-weight: 400;
+  font-family: var(--fm);
+  color: var(--muted);
+  margin-top: 2px;
+}
+
 .om-header {
   display: flex;
   align-items: baseline;
@@ -711,22 +735,40 @@ function renderOmDetailContent(source, om) {
   const negData = omData.currentMonth["Negotiation"] || { count: 0, lv: 0 };
   const crData = omData.currentMonth["Content Requested"] || { count: 0, lv: 0 };
   
-  // Recent trend averages (last 3 months, excluding current partial month may be ok to include)
+  // Recent 3 months (latest) vs previous 3 months for trend comparison
   const recentMonths = months.slice(-3);
-  let convSum = 0, convCount = 0;
-  let daysSum = 0, daysCount = 0;
-  let createdCrSum = 0, createdCrCount = 0;
-  recentMonths.forEach(m => {
-    const t = omData.trends[m];
-    if (t) {
-      if (t.conversion_rate > 0) { convSum += t.conversion_rate; convCount++; }
-      if (t.avg_days_to_cr > 0) { daysSum += t.avg_days_to_cr; daysCount++; }
-      if (t.created_to_cr_rate > 0) { createdCrSum += t.created_to_cr_rate; createdCrCount++; }
-    }
-  });
-  const avgConvRate = convCount > 0 ? Math.round(convSum / convCount) : 0;
-  const avgDaysToCr = daysCount > 0 ? Math.round(daysSum / daysCount) : 0;
-  const avgCreatedCr = createdCrCount > 0 ? Math.round(createdCrSum / createdCrCount) : 0;
+  const prevMonths = months.length >= 6 ? months.slice(-6, -3) : months.slice(0, Math.max(0, months.length - 3));
+  
+  function calcAvg(mths, metric) {
+    let sum = 0, cnt = 0;
+    mths.forEach(m => {
+      const v = omData.trends[m]?.[metric] || 0;
+      if (v > 0) { sum += v; cnt++; }
+    });
+    return cnt > 0 ? Math.round(sum / cnt) : 0;
+  }
+  
+  const avgConvRate    = calcAvg(recentMonths, 'conversion_rate');
+  const avgDaysToCr    = calcAvg(recentMonths, 'avg_days_to_cr');
+  const avgCreatedCr   = calcAvg(recentMonths, 'created_to_cr_rate');
+  
+  const prevAvgConvRate  = calcAvg(prevMonths, 'conversion_rate');
+  const prevAvgDaysToCr  = calcAvg(prevMonths, 'avg_days_to_cr');
+  const prevAvgCreatedCr = calcAvg(prevMonths, 'created_to_cr_rate');
+  
+  // trend badge: direction, delta, higherIsBetter
+  function trendBadge(current, prev, higherIsBetter, unit) {
+    if (prev === 0 || current === 0) return '<span class="kpi-trend neutral">— no prior data</span>';
+    const delta = current - prev;
+    if (delta === 0) return '<span class="kpi-trend neutral">→ no change</span>';
+    const isUp = delta > 0;
+    const isGood = higherIsBetter ? isUp : !isUp;
+    const cls = isGood ? (isUp ? 'up-good' : 'down-good') : (isUp ? 'up-bad' : 'down-bad');
+    const arrow = isUp ? '↑' : '↓';
+    const absDelta = Math.abs(delta);
+    const deltaStr = unit === '%' ? absDelta + '%' : (unit === 'days' ? absDelta + ' days' : String(absDelta));
+    return '<span class="kpi-trend ' + cls + '">' + arrow + ' ' + deltaStr + ' vs prev 3m</span>';
+  }
   
   // === Build HTML ===
   let html = '';
@@ -740,34 +782,38 @@ function renderOmDetailContent(source, om) {
   // KPI Cards
   html += '<div class="kpi-grid">';
   html += '<div class="kpi-card accent-teal">' +
-    '<div class="kpi-label">Published LV - ' + esc(currentMonth) + '</div>' +
+    '<div class="kpi-label">Published LV · ' + esc(currentMonth) + '</div>' +
     '<div class="kpi-value">' + fmt(omCurrentPublishedLV) + '</div>' +
     '<div class="kpi-sub">' + fmt(omCurrentPublishedCount) + ' records · <strong>' + currentSharePct + '%</strong> of team total</div>' +
     '</div>';
   html += '<div class="kpi-card accent-purple">' +
-    '<div class="kpi-label">Published LV - ' + esc(previousMonth) + '</div>' +
+    '<div class="kpi-label">Published LV · ' + esc(previousMonth) + '</div>' +
     '<div class="kpi-value">' + fmt(omPreviousLV) + '</div>' +
     '<div class="kpi-sub"><strong>' + previousSharePct + '%</strong> of total client quota</div>' +
     '</div>';
   html += '<div class="kpi-card accent-amber">' +
-    '<div class="kpi-label">In Negotiation (now)</div>' +
+    '<div class="kpi-label">In Negotiation · ' + esc(currentMonth) + '</div>' +
     '<div class="kpi-value">' + fmt(negData.count) + '</div>' +
     '<div class="kpi-sub">LV: ' + fmt(negData.lv) + '</div>' +
     '</div>';
   html += '<div class="kpi-card accent-orange">' +
-    '<div class="kpi-label">Content Requested (now)</div>' +
+    '<div class="kpi-label">Content Requested · ' + esc(currentMonth) + '</div>' +
     '<div class="kpi-value">' + fmt(crData.count) + '</div>' +
     '<div class="kpi-sub">LV: ' + fmt(crData.lv) + '</div>' +
     '</div>';
   html += '<div class="kpi-card accent-green">' +
-    '<div class="kpi-label">Avg Negotiation → CR</div>' +
+    '<div class="kpi-label">Avg Negotiation → Content Requested</div>' +
     '<div class="kpi-value">' + avgConvRate + '%</div>' +
     '<div class="kpi-sub">avg last 3 months</div>' +
+    trendBadge(avgConvRate, prevAvgConvRate, true, '%') +
+    '<div class="kpi-trend-label">higher is better · trend vs previous 3m</div>' +
     '</div>';
   html += '<div class="kpi-card accent-red">' +
-    '<div class="kpi-label">Avg Days Created → CR</div>' +
-    '<div class="kpi-value">' + avgDaysToCr + '</div>' +
-    '<div class="kpi-sub">days · avg last 3 months</div>' +
+    '<div class="kpi-label">Avg Days Created → Content Requested</div>' +
+    '<div class="kpi-value">' + avgDaysToCr + (avgDaysToCr > 0 ? '<span style="font-size:16px;font-weight:400;color:var(--muted);"> days</span>' : '') + '</div>' +
+    '<div class="kpi-sub">avg last 3 months</div>' +
+    trendBadge(avgDaysToCr, prevAvgDaysToCr, false, 'days') +
+    '<div class="kpi-trend-label">lower is better · trend vs previous 3m</div>' +
     '</div>';
   html += '</div>';
   
