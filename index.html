@@ -613,15 +613,31 @@ let omDetailState = {
 };
 
 const CHART_COLORS = [
-  '#5b4de0', // Fialová (Purple)
+  '#5b4de0', // Purple
   '#0e9e80', // Teal
-  '#e63946', // Červená (Red)
-  '#f77f00', // Oranžová (Orange)
-  '#06d6a0', // Zelená (Mint Green)
-  '#118ab2', // Modrá (Blue)
-  '#ef476f', // Růžová (Pink)
-  '#ffd60a'  // Žlutá (Yellow) - pro případné další OM
+  '#f77f00', // Orange
+  '#ffd60a', // Yellow
+  '#118ab2', // Blue
+  '#06d6a0', // Mint
+  '#9b59b6', // Violet
+  '#e63946'  // Red
 ];
+
+// Per-OM fixed colors – override index-based assignment
+const OM_COLORS = {
+  'Deborah ':  '#e91e8c',  // Pink
+  'Deborah':   '#e91e8c',
+  'Chisom ':   '#4a2210',  // Dark chocolate
+  'Chisom':    '#4a2210'
+};
+
+function omColor(name) {
+  return OM_COLORS[name] || null;
+}
+
+function omColorByIndex(name, idx) {
+  return omColor(name) || CHART_COLORS[idx % CHART_COLORS.length];
+}
 
 function fmt(v) { return Math.round(v||0).toLocaleString("en-US"); }
 function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -927,7 +943,7 @@ function renderOmDetailContent(source, om) {
           labels: [om, 'Rest of team'],
           datasets: [{
             data: [omPreviousLV, rest],
-            backgroundColor: ['#5b4de0', '#eeecea'],
+            backgroundColor: [omColor(om) || '#5b4de0', '#eeecea'],
             borderWidth: 2,
             borderColor: '#fff'
           }]
@@ -967,13 +983,13 @@ function renderOmDetailContent(source, om) {
         datasets: [{
           label: om,
           data: months.map(m => omData.trends[m]?.[def.metric] || 0),
-          borderColor: '#5b4de0',
-          backgroundColor: 'rgba(91, 77, 224, 0.12)',
+          borderColor: omColor(om) || '#5b4de0',
+          backgroundColor: (omColor(om) || '#5b4de0') + '20',
           borderWidth: 2.5,
           tension: 0.3,
           fill: true,
           pointRadius: 4,
-          pointBackgroundColor: '#5b4de0'
+          pointBackgroundColor: omColor(om) || '#5b4de0'
         }]
       },
       options: {
@@ -1162,7 +1178,7 @@ function renderQuota(baseData, containerId, previousMonth) {
       labels: oms,
       datasets: [{
         data: oms.map(om => omTotals[om]),
-        backgroundColor: CHART_COLORS,
+        backgroundColor: oms.map((om, idx) => omColorByIndex(om, idx)),
         borderWidth: 2,
         borderColor: '#fff'
       }]
@@ -1327,15 +1343,18 @@ function renderLineChart(chartId, months, oms, baseData, metric) {
   
   if (charts[chartId]) charts[chartId].destroy();
   
-  const datasets = oms.map((om, idx) => ({
-    label: om,
-    data: months.map(month => baseData.data[om]?.trends[month]?.[metric] || 0),
-    borderColor: CHART_COLORS[idx % CHART_COLORS.length],
-    backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] + '20',
-    borderWidth: 2,
-    tension: 0.3,
-    fill: false
-  }));
+  const datasets = oms.map((om, idx) => {
+    const color = omColorByIndex(om, idx);
+    return {
+      label: om,
+      data: months.map(month => baseData.data[om]?.trends[month]?.[metric] || 0),
+      borderColor: color,
+      backgroundColor: color + '20',
+      borderWidth: 2,
+      tension: 0.3,
+      fill: false
+    };
+  });
   
   charts[chartId] = new Chart(ctx, {
     type: 'line',
