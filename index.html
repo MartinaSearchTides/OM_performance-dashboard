@@ -748,11 +748,9 @@ function renderOmDetailContent(source, om) {
     return cnt > 0 ? Math.round(sum / cnt) : 0;
   }
   
-  const avgConvRate    = calcAvg(recentMonths, 'conversion_rate');
   const avgDaysToCr    = calcAvg(recentMonths, 'avg_days_to_cr');
   const avgCreatedCr   = calcAvg(recentMonths, 'created_to_cr_rate');
   
-  const prevAvgConvRate  = calcAvg(prevMonths, 'conversion_rate');
   const prevAvgDaysToCr  = calcAvg(prevMonths, 'avg_days_to_cr');
   const prevAvgCreatedCr = calcAvg(prevMonths, 'created_to_cr_rate');
   
@@ -800,13 +798,6 @@ function renderOmDetailContent(source, om) {
     '<div class="kpi-label">Content Requested · ' + esc(currentMonth) + '</div>' +
     '<div class="kpi-value">' + fmt(crData.count) + '</div>' +
     '<div class="kpi-sub">LV: ' + fmt(crData.lv) + '</div>' +
-    '</div>';
-  html += '<div class="kpi-card accent-green">' +
-    '<div class="kpi-label">Avg Negotiation → Content Requested</div>' +
-    '<div class="kpi-value">' + avgConvRate + '%</div>' +
-    '<div class="kpi-sub">avg last 3 months</div>' +
-    trendBadge(avgConvRate, prevAvgConvRate, true, '%') +
-    '<div class="kpi-trend-label">higher is better · trend vs previous 3m</div>' +
     '</div>';
   html += '<div class="kpi-card accent-red">' +
     '<div class="kpi-label">Avg Days Created → Content Requested</div>' +
@@ -888,10 +879,7 @@ function renderOmDetailContent(source, om) {
     { metric: 'total_count', label: 'Total Records per Month', format: 'int' },
     { metric: 'total_lv', label: 'Total LV per Month', format: 'int' },
     { metric: 'created_to_cr_rate', label: 'Created → Content Requested Conversion Rate (%)', format: 'pct' },
-    { metric: 'avg_days_to_cr', label: 'Average Days to Content Request', format: 'days' },
-    { metric: 'negotiation_count', label: 'Records in Negotiation Status (by Prod Month)', format: 'int' },
-    { metric: 'negotiation_lv', label: 'LV in Negotiation Status (by Prod Month)', format: 'int' },
-    { metric: 'conversion_rate', label: 'Negotiation → Content Requested Conversion Rate (%)', format: 'pct' }
+    { metric: 'avg_days_to_cr', label: 'Average Days to Content Request', format: 'days' }
   ];
   
   trendDefs.forEach((def, idx) => {
@@ -1270,63 +1258,6 @@ function renderTrends(baseData, containerId, period = 12) {
   });
   html += '</tbody></table></div>';
   
-  // 5. Negotiations Trend (Snapshot - not historical progression)
-  html += '<div class="data-card"><div class="card-header">Records in Negotiations Status (by Prod Month)<br><small style="font-size: 11px; font-weight: 400; color: var(--muted); font-family: var(--fm);">Note: Shows records currently/historically marked with Negotiation status for each month - not a pipeline progression snapshot</small></div>';
-  const chartId5 = 'chart-neg-count-' + containerId;
-  html += '<div class="chart-container"><canvas id="' + chartId5 + '"></canvas></div>';
-  
-  html += '<table class="data-table"><thead><tr><th>Month</th>';
-  oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
-  html += '</tr></thead><tbody>';
-  
-  months.forEach(month => {
-    html += '<tr><td class="om-name">' + esc(month) + '</td>';
-    oms.forEach(om => {
-      const val = baseData.data[om]?.trends[month]?.negotiation_count || 0;
-      html += '<td class="num">' + (val > 0 ? fmt(val) : '-') + '</td>';
-    });
-    html += '</tr>';
-  });
-  html += '</tbody></table></div>';
-  
-  // 6. Negotiations LV Trend
-  html += '<div class="data-card"><div class="card-header">LV in Negotiations Status (by Prod Month)<br><small style="font-size: 11px; font-weight: 400; color: var(--muted); font-family: var(--fm);">Total Link Value of records with Negotiation status</small></div>';
-  const chartId6 = 'chart-neg-lv-' + containerId;
-  html += '<div class="chart-container"><canvas id="' + chartId6 + '"></canvas></div>';
-  
-  html += '<table class="data-table"><thead><tr><th>Month</th>';
-  oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
-  html += '</tr></thead><tbody>';
-  
-  months.forEach(month => {
-    html += '<tr><td class="om-name">' + esc(month) + '</td>';
-    oms.forEach(om => {
-      const val = baseData.data[om]?.trends[month]?.negotiation_lv || 0;
-      html += '<td class="num">' + (val > 0 ? fmt(val) : '-') + '</td>';
-    });
-    html += '</tr>';
-  });
-  html += '</tbody></table></div>';
-  
-  // 7. Conversion Rate Trend
-  html += '<div class="data-card"><div class="card-header">Negotiations → Content Requested Conversion Rate (%)</div>';
-  const chartId7 = 'chart-conversion-' + containerId;
-  html += '<div class="chart-container"><canvas id="' + chartId7 + '"></canvas></div>';
-  
-  html += '<table class="data-table"><thead><tr><th>Month</th>';
-  oms.forEach(om => html += '<th class="num">' + esc(om) + '</th>');
-  html += '</tr></thead><tbody>';
-  
-  months.forEach(month => {
-    html += '<tr><td class="om-name">' + esc(month) + '</td>';
-    oms.forEach(om => {
-      const val = baseData.data[om]?.trends[month]?.conversion_rate || 0;
-      html += '<td class="num">' + (val > 0 ? val + '%' : '-') + '</td>';
-    });
-    html += '</tr>';
-  });
-  html += '</tbody></table></div>';
-  
   container.innerHTML = html;
   
   // Render all charts
@@ -1334,9 +1265,6 @@ function renderTrends(baseData, containerId, period = 12) {
   renderLineChart(chartId2, months, oms, baseData, 'total_lv');
   renderLineChart(chartId3, months, oms, baseData, 'created_to_cr_rate');
   renderLineChart(chartId4, months, oms, baseData, 'avg_days_to_cr');
-  renderLineChart(chartId5, months, oms, baseData, 'negotiation_count');
-  renderLineChart(chartId6, months, oms, baseData, 'negotiation_lv');
-  renderLineChart(chartId7, months, oms, baseData, 'conversion_rate');
 }
 
 function renderLineChart(chartId, months, oms, baseData, metric) {
